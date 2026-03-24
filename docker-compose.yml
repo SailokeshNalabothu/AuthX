@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 1. MongoDB Database Container
+  mongo:
+    image: mongo:latest
+    container_name: authx-mongo
+    ports:
+      - "27017:27017" # Maps localhost:27017 to container port 27017
+    volumes:
+      - mongo-data:/data/db # Creates a persistent volume so database isn't wiped on restart
+
+  # 2. Node.js Backend API Container
+  api:
+    build: . # Looks for the Dockerfile in the same root folder
+    container_name: authx-backend
+    ports:
+      - "5000:5000"
+    environment:
+      # Docker Compose explicitly overrides MongoDB to securely hit our MongoDB container above instead of '127.0.0.1' natively!
+      - MONGO_URI=mongodb://mongo:27017/authx
+      # Dynamically inject the remaining secrets from your local .env file!
+      - JWT_SECRET=${JWT_SECRET}
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      - mongo # API waits to boot until Mongo container is up!
+    volumes:
+      - .:/app # Maps your active source code for hot-reloading
+      - /app/node_modules # Prevents your Windows node_modules from crashing the Linux container
+
+  # 3. React Frontend Container
+  frontend:
+    build: ./authx-frontend
+    container_name: authx-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Fixes WDS Hot-Reloading socket inside Docker networks
+      - WDS_SOCKET_PORT=0
+    volumes:
+      - ./authx-frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api # React waits until your Backend is online
+
+# Instruct Docker to allocate persistent local storage for the Database
+volumes:
+  mongo-data:

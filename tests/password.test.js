@@ -17,7 +17,7 @@ describe('Password Reset Flow', () => {
 
   beforeAll(async () => {
     await User.deleteMany({});
-    
+
     // Create user manually for this suite
     const bcrypt = require('bcryptjs');
     const hash = await bcrypt.hash(testUser.password, 10);
@@ -29,7 +29,7 @@ describe('Password Reset Flow', () => {
       const res = await request(app)
         .post('/api/auth/forgot-password')
         .send({ email: testUser.email });
-        
+
       expect(res.statusCode).toBe(200);
       expect(res.body.msg).toBe("Password reset link sent to email");
 
@@ -44,7 +44,7 @@ describe('Password Reset Flow', () => {
       const res = await request(app)
         .post('/api/auth/reset-password/invalidtoken')
         .send({ password: 'newpassword123' });
-        
+
       expect(res.statusCode).toBe(400);
       expect(res.body.msg).toBe("Invalid or expired token");
     });
@@ -53,7 +53,7 @@ describe('Password Reset Flow', () => {
       const res = await request(app)
         .post(`/api/auth/reset-password/${resetToken}`)
         .send({ password: 'newpassword123' });
-        
+
       expect(res.statusCode).toBe(200);
       expect(res.body.msg).toBe("Password reset successful");
 
@@ -62,7 +62,7 @@ describe('Password Reset Flow', () => {
         .post('/api/auth/login')
         .send({ email: testUser.email, password: testUser.password });
       expect(loginRes.statusCode).toBe(400);
-      
+
       // Verify new password succeeds
       const newLoginRes = await request(app)
         .post('/api/auth/login')
