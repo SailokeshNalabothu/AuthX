@@ -77,4 +77,4 @@ If you prefer running manual Node processes on older systems:
 4. Run `cd authx-frontend`, `npm install`, and `npm start` (Starts Frontend).
 
 ---
-*Architected and Designed by a 3rd-Year CSE Student.*
+
