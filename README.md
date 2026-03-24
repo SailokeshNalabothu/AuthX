@@ -1,5 +1,7 @@
 # 🛡️ AuthX - Enterprise-Grade Authentication System
 
+[![CI Pipeline](https://github.com/SailokeshNalabothu/AuthX/actions/workflows/ci.yml/badge.svg)](https://github.com/SailokeshNalabothu/AuthX/actions/workflows/ci.yml)
+
 > A production-ready full-stack authentication system engineered with Node.js, Express, MongoDB, and React. Built to enterprise SaaS standards, focusing on high security, seamless UX, comprehensive automated testing, and modular scalability.
 
 ---
