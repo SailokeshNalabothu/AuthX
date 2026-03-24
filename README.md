@@ -39,70 +39,42 @@ To guarantee flawless pipeline stability regardless of where the repository is c
 
 ---
 
-## 🛠️ Tech Stack
+## 🐳 Docker & Container Orchestration
 
-**Backend:** Node.js, Express.js, MongoDB (Mongoose), JSON Web Tokens (JWT), bcryptjs, Passport.js, Nodemailer, Express-Rate-Limit  
-**Frontend:** React.js (CRA), React Router DOM, Axios, React Toastify, Custom Modern CSS  
-**Testing:** Jest, Supertest, cross-env  
+This entire repository (React Frontend, Node Backend, and MongoDB Database) is securely wrapped inside an enterprise CI/CD pipeline using **Docker**. This completely eliminates the "It works on my machine" problem, guaranteeing standard behavior across laptops, teammates, and AWS Cloud Servers.
+
+- **Infrastructure as Code (`docker-compose.yml`)**: Controls the exact boot sequence of the 3 isolated microservice environments. Your MongoDB Database initializes natively, triggering the Node API, which subsequently boots the React environment.
+- **Isolated Internal Networking**: The backend bypasses native localhost routing and talks to MongoDB completely wirelessly over a secure Docker internal DNS (`mongodb://mongo:27017/authx`), seamlessly overriding the raw `.env` mapping statically. 
+- **Developer Acceleration**: A new engineer can type one single command (`docker-compose up`) to instantly construct and launch the complete 3-tier microservice architecture natively, without ever having to install MongoDB or Node.js versions on their native machine.
 
 ---
 
-## ⚙️ Installation & Setup
+## 🛠️ Tech Stack
 
-### 1. Clone & Install Dependencies
-First, clone the repository and install the backend modules:
+**Backend:** Node.js, Express.js, MongoDB, JWT, bcryptjs, Passport.js, Nodemailer, Express-Rate-Limit  
+**Frontend:** React.js, React Router DOM, Axios, React Toastify, Custom Modern CSS  
+**Testing & DevOps:** Jest, Supertest, Docker, Docker Compose  
+
+---
+
+## ⚙️ Installation & Usage
+
+You can deploy the entire production stack instantly utilizing Docker Desktop:
+
+### Method 1: Instant Orchestration (Docker)
+Ensure Docker is installed on your computer. Inside the root `authx` folder, run a single command in your terminal:
 ```bash
-git clone <repository_url>
-cd authx
-npm install
+docker-compose up --build
 ```
+*(This command automatically downloads MongoDB, maps the React Frontend bindings, processes the secure internal environment arrays statically, and launches securely exposing port `3000`)*
 
-Then, install the React frontend dependencies:
-```bash
-cd authx-frontend
-npm install
-```
+### Method 2: Manual Native Execution
+If you prefer running manual Node processes on older systems:
 
-### 2. Environment Variables (.env)
-Create a `.env` file in the root `authx` folder and populate it:
-```env
-PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/authx
-
-# JWT Secrets (Use strong random strings in production)
-JWT_SECRET=supersecretkey
-ACCESS_TOKEN_SECRET=accesssecret
-REFRESH_TOKEN_SECRET=refreshsecret
-
-# Nodemailer Credentials
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASS=your_app_password
-
-# Google OAuth Credentials
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-```
-
-### 3. Run the Application
-Start both applications on separate terminal instances:
-
-**Run the Backend (Port 5000):**
-```bash
-cd authx
-npm run dev
-```
-
-**Run the Frontend (Port 3000):**
-```bash
-cd authx/authx-frontend
-npm start
-```
-
-**Run the Internal Enterprise Test Suite:**
-```bash
-cd authx
-npm test
-```
+1. Connect a native instance of MongoDB on `127.0.0.1:27017`.
+2. Create your `.env` locally mirroring standard secrets format.
+3. Run `npm install` and `npm run dev` in the root folder (Starts Backend).
+4. Run `cd authx-frontend`, `npm install`, and `npm start` (Starts Frontend).
 
 ---
 *Architected and Designed by a 3rd-Year CSE Student.*
