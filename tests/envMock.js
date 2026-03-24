@@ -1,0 +1,10 @@
+process.env.NODE_ENV = 'test';
+process.env.MONGO_URI = 'mongodb://127.0.0.1:27017/authx_test';
+process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+process.env.JWT_SECRET = 'test-jwt-secret';
+process.env.ACCESS_TOKEN_SECRET = 'test-access-token-secret';
+process.env.REFRESH_TOKEN_SECRET = 'test-refresh-token-secret';
+process.env.EMAIL_USER = 'test@example.com';
+process.env.EMAIL_PASS = '123456';
+process.env.PORT = '5000';
