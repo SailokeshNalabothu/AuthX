@@ -1,0 +1,32 @@
+services:
+  mongo:
+    image: mongo:6
+    container_name: authx-mongo
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+    env_file:
+      - .env
+
+  backend:
+    image: sailokeshnalabothu/authx-backend:latest
+    container_name: authx-backend
+    restart: always
+    depends_on:
+      - mongo
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+
+  frontend:
+    image: sailokeshnalabothu/authx-frontend:latest
+    container_name: authx-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  mongo-data:

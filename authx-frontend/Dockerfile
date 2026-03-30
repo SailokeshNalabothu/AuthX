@@ -1,20 +1,24 @@
-# Step 1: Base Linux OS image with Node pre-installed
-FROM node:20-alpine
+# Build Stage
+FROM node:20-alpine AS builder
 
-# Step 2: Establish the React workspace
 WORKDIR /app
 
-# Step 3: Copy package dependencies
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Step 4: Force clean dependency construction
 RUN npm install
 
-# Step 5: Pull the rest of the frontend source code
+# Copy source and build the React app
 COPY . .
+RUN npm run build
 
-# Step 6: Expose development port
-EXPOSE 3000
+# Nginx Serve Stage
+FROM nginx:alpine
 
-# Step 7: Run the React start script
-CMD ["npm", "start"]
+# Copy built assets from builder stage
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Expose standard Nginx port
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
