@@ -8,7 +8,7 @@
 [![Test Suite](https://img.shields.io/badge/tests-71%2F71%20passing-success.svg)](https://jestjs.io/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-> **AuthX** is a production-hardened, full-stack identity, session intelligence, and access management developer platform engineered with **Node.js**, **Express**, **MongoDB**, and **React**. Designed to meet modern enterprise SaaS standards (Stripe, Clerk & Supabase style), AuthX delivers a developer-first platform with scoped API keys (PATs), signed outbound webhooks with HMAC SHA-256 signatures, 1-click cryptographic email verification, proactive anomaly detection, instant account lockdown alerts, immutable security audit logs with CSV export, interactive personal security timelines, active multi-session tracking, RFC 6238 TOTP two-factor authentication, cryptographic backup recovery codes, dual-token JWT architecture with silent refresh interceptors, rate-limiting brute-force defenses, Google OAuth 2.0 SSO, and role-based access control.
+> **AuthX** is a production-hardened, full-stack identity, session intelligence, and access management developer platform engineered with **Node.js**, **Express**, **MongoDB**, and **React**. Designed to meet modern enterprise SaaS standards (Stripe, Clerk & Supabase style), AuthX delivers a developer-first platform with scoped API keys (PATs), signed outbound webhooks with HMAC SHA-256 signatures, gamified real-time Security Health Score meter, live password strength and Shannon entropy analyzer, Light/Dark/Cyber glassmorphism themes, hardened httpOnly secure cookie storage, 1-click cryptographic email verification, proactive anomaly detection, instant account lockdown alerts, immutable security audit logs with CSV export, interactive personal security timelines, active multi-session tracking, RFC 6238 TOTP two-factor authentication, cryptographic backup recovery codes, dual-token JWT architecture with silent refresh interceptors, rate-limiting brute-force defenses, Google OAuth 2.0 SSO, and role-based access control.
 
 ---
 
@@ -32,6 +32,7 @@
     - [11. Role-Based Access Control (RBAC)](#11-role-based-access-control-rbac)
     - [12. ⚡ Developer Platform: Scoped API Keys (PATs) \& Signed Outbound Webhooks](#12--developer-platform-scoped-api-keys-pats--signed-outbound-webhooks)
     - [13. 👑 Enterprise Admin Suite: Analytics, User Impersonation \& Bulk Operations](#13--enterprise-admin-suite-analytics-user-impersonation--bulk-operations)
+    - [14. 🎨 Premium UX Polish \& Security Center](#14--premium-ux-polish--security-center)
   - [🛠 Tech Stack](#-tech-stack)
   - [📡 REST API Reference](#-rest-api-reference)
     - [Authentication Endpoints (`/api/auth`)](#authentication-endpoints-apiauth)
@@ -231,6 +232,7 @@ Frontend Routing & UI: React Router v6, Axios, React Toastify, Custom Modern CSS
 | `POST` | `/api/auth/forgot-password` | Public | Request password reset token via email |
 | `POST` | `/api/auth/reset-password/:token` | Public | Reset password using verified reset token (clears lock) |
 | `POST` | `/api/auth/refresh` | Public | Exchange valid Refresh Token for fresh Access Token |
+| `POST` | `/api/auth/logout` | Public / Session | Clear httpOnly secure cookies and revoke active device session |
 | `POST` | `/api/auth/lock-account` | Public / Token | True 1-click instant account lockdown from email alert |
 | `GET` | `/api/auth/lock-account-direct`| Public / Token | Direct GET lockdown endpoint with automated redirect |
 | `POST` | `/api/auth/request-unlock` | Public | Dispatch self-service 15-minute unlock link to email |
