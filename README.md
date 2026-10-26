@@ -1,86 +1,351 @@
-# 🛡️ AuthX - Enterprise-Grade Authentication System
+# 🛡️ AuthX - Enterprise-Grade Authentication & Session Intelligence Platform
 
 [![CI Pipeline](https://github.com/SailokeshNalabothu/AuthX/actions/workflows/ci.yml/badge.svg)](https://github.com/SailokeshNalabothu/AuthX/actions/workflows/ci.yml)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.x-brightgreen.svg)](https://nodejs.org/)
+[![React Version](https://img.shields.io/badge/react-18.x-61dafb.svg)](https://react.dev/)
+[![MongoDB](https://img.shields.io/badge/database-MongoDB-47A248.svg)](https://www.mongodb.com/)
+[![Docker Ready](https://img.shields.io/badge/docker-orchestrated-2496ED.svg)](https://www.docker.com/)
+[![Test Suite](https://img.shields.io/badge/tests-20%2F20%20passing-success.svg)](https://jestjs.io/)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-> A production-ready full-stack authentication system engineered with Node.js, Express, MongoDB, and React. Built to enterprise SaaS standards, focusing on high security, seamless UX, comprehensive automated testing, and modular scalability.
-
----
-
-## 🚀 Features
-
-### 🔐 Advanced Security & Authentication
-- **🛡️ Active Device & Session Intelligence (Google / Clerk style)**: Multi-session tracking with zero-dependency User-Agent & IP parsing (device type, OS, browser, geolocation). Instant single-device revocation and bulk "Sign Out All Other Devices" with real-time tab-focus verification and heartbeat checks.
-- **🔐 Two-Factor Authentication (TOTP 2FA)**: Full RFC 6238 TOTP implementation compatible with Google Authenticator, Authy, and 1Password. Scans QR code or manual secret, validates rolling 6-digit codes, and intercepts logins with 2FA challenges.
-- **🔄 Emergency Backup Recovery Codes**: Issues 8 single-use cryptographically random backup codes (`XXXX-XXXX`) securely hashed with `bcrypt`. Includes on-demand password-verified code regeneration to prevent account lockouts.
-- **Dual JWT Architecture**: Short-lived Access Tokens (15m) paired with long-lived Refresh Tokens (7d) stored securely.
-- **Axios Interceptors**: Silent background token refreshing in React to maintain session continuity without UX interruption.
-- **Account Lockout & Brute Force Protection**: Tracks failed login attempts and temporarily limits accounts (e.g., 15-minute freeze after 5 failures) paired with API rate limiting (`express-rate-limit`).
-- **Google OAuth 2.0**: Frictionless Single Sign-On (SSO) integration seamlessly bridging backend Passport.js logic with the React frontend.
-- **Role-Based Access Control (RBAC)**: Centralized authorization logic separating general Users from Admins, securing strict API routes and UI components.
-
-### ✉️ Email Workflows & HTML Templating
-- **OTP Registration**: Custom 6-digit One-Time-Password sent upon signup to verify email ownership before granting database access.
-- **Password Recovery**: Secure password reset pipelines utilizing randomly generated hex tokens with strict 10-minute expiry windows.
-- **HTML Templates**: Professional, inline-CSS email templates rendered natively for Verification, Password Reset, and Welcome emails.
-
-### 💻 Premium Frontend (React)
-- Layout crafted natively with modern SaaS design language (Inter font, sleek shadows, responsive forms).
-- **React Router v6**: Explicit route guards (`<ProtectedRoute>`, `<AdminRoute>`) executing client-side JWT decoding for instant UI protection.
-- **UX Polish**: Dynamic button loading spinners and fully animated `react-toastify` popups replacing native browser alerts.
+> **AuthX** is a production-hardened, full-stack identity, session intelligence, and access management platform engineered with **Node.js**, **Express**, **MongoDB**, and **React**. Designed to meet modern enterprise SaaS standards (Google & Clerk style), AuthX delivers active multi-session tracking, RFC 6238 TOTP two-factor authentication, cryptographic backup recovery codes, dual-token JWT architecture with silent refresh interceptors, rate-limiting brute-force defenses, Google OAuth 2.0 SSO, and role-based access control.
 
 ---
 
-## 🧪 Enterprise Testing Architecture
+## 📑 Table of Contents
 
-The backend is strictly verified by an extensive automated CI/CD testing pipeline using **Jest** and **Supertest**, mapping across APIs, Middlewares, and Databases.
-
-**Current Status:** `100% Passing (20/20 assertions complete across 6 test suites)`
-
-To guarantee flawless pipeline stability regardless of where the repository is cloned, several advanced testing integrations were configured:
-
-1. **Isolated Testing Databases (`authx_test`)**: A fully separate MongoDB cluster is dynamically initialized when triggering Jest, completely shielding production/development data from test mutations.
-2. **Synchronous Execution (`--runInBand`)**: Jest handles test-groupings purely sequentially. This bypasses structural parallel Database write-collisions that heavily trigger destructive race conditions between mutually exclusive test suites.
-3. **Mocking SMTP Services (`jest.mock`)**: External Nodemailer SMTP network streams run through explicit mock interceptions. This massively accelerates sequence durations on CI/CD servers and entirely prevents `5000ms Hook Timeout` exceptions dropping APIs due to heavy email dispatching overheads.
-4. **Environment Encapsulation (`tests/envMock.js`)**: Authentic `.env` files are fully excluded from the pipeline. Tests leverage explicitly stateless mocked environmental keys, allowing bulletproof testing functionality (`npm test`) to fire perfectly straight out-of-the-box upon `git clone`.
-
----
-
-## 🐳 Docker & Container Orchestration
-
-This entire repository (React Frontend, Node Backend, and MongoDB Database) is securely wrapped inside an enterprise CI/CD pipeline using **Docker**. This completely eliminates the "It works on my machine" problem, guaranteeing standard behavior across laptops, teammates, and AWS Cloud Servers.
-
-- **Infrastructure as Code (`docker-compose.yml`)**: Controls the exact boot sequence of the 3 isolated microservice environments. Your MongoDB Database initializes natively, triggering the Node API, which subsequently boots the React environment.
-- **Isolated Internal Networking**: The backend bypasses native localhost routing and talks to MongoDB completely wirelessly over a secure Docker internal DNS (`mongodb://mongo:27017/authx`), seamlessly overriding the raw `.env` mapping statically. 
-- **Developer Acceleration**: A new engineer can type one single command (`docker-compose up`) to instantly construct and launch the complete 3-tier microservice architecture natively, without ever having to install MongoDB or Node.js versions on their native machine.
-
----
-
-## 🛠️ Tech Stack
-
-**Backend:** Node.js, Express.js, MongoDB, JWT, bcryptjs, Passport.js, Nodemailer, Express-Rate-Limit  
-**Frontend:** React.js, React Router DOM, Axios, React Toastify, Custom Modern CSS  
-**Testing & DevOps:** Jest, Supertest, Docker, Docker Compose  
+- [System Architecture](#-system-architecture)
+- [Enterprise Features](#-enterprise-features)
+  - [Active Device & Session Intelligence](#1-active-device--session-intelligence-clerk--google-style)
+  - [Two-Factor Authentication (TOTP 2FA)](#2-two-factor-authentication-totp-2fa)
+  - [Cryptographic Backup Recovery Codes](#3-cryptographic-backup-recovery-codes)
+  - [Dual-Token JWT Architecture & Silent Refresh](#4-dual-token-jwt-architecture--silent-refresh)
+  - [Brute-Force Protection & Account Lockout](#5-brute-force-protection--account-lockout)
+  - [Federated Single Sign-On (Google OAuth 2.0)](#6-federated-single-sign-on-google-oauth-20)
+  - [Role-Based Access Control (RBAC)](#7-role-based-access-control-rbac)
+  - [Transactional HTML Email Engine](#8-transactional-html-email-engine)
+- [Tech Stack](#-tech-stack)
+- [REST API Reference](#-rest-api-reference)
+- [Testing & Quality Assurance](#-testing--quality-assurance)
+- [Quick Start Guide](#-quick-start-guide)
+  - [Method 1: Docker Container Orchestration](#method-1-docker-container-orchestration-recommended)
+  - [Method 2: Native Manual Installation](#method-2-native-manual-installation)
+- [Environment Configuration](#-environment-configuration)
+- [Project Directory Structure](#-project-directory-structure)
+- [Security Hardening](#-security-hardening)
+- [License](#-license)
 
 ---
 
-## ⚙️ Installation & Usage
+## 🏛 System Architecture
 
-You can deploy the entire production stack instantly utilizing Docker Desktop:
+The AuthX infrastructure is built as a modular 3-tier microservice architecture orchestrated via Docker Compose:
 
-### Method 1: Instant Orchestration (Docker)
-Ensure Docker is installed on your computer. Inside the root `authx` folder, run a single command in your terminal:
+```mermaid
+graph TD
+    User([Client / Web Browser]) -->|HTTP / React UI :3000| Frontend[authx-frontend Container<br/>React 18 + Nginx]
+    Frontend -->|Axios REST / JSON :5000| Backend[authx-backend Container<br/>Node.js + Express API]
+    Backend -->|Internal DNS :27017| Database[(authx-mongo Container<br/>MongoDB Database)]
+    Backend -.->|OAuth 2.0 Flow| GoogleAuth[Google Cloud SSO]
+    Backend -.->|SMTP Stream| EmailService[Nodemailer / SMTP]
+```
+
+### Microservice Containers
+
+| Container Name | Technology | Internal Port | Host Port | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| `authx-frontend` | React 18, Axios, React Router v6 | `80` (Nginx) | `3000` | SaaS client UI, session dashboard, route guards |
+| `authx-backend` | Node.js, Express.js, Passport.js | `5000` | `5000` | REST API, token issuance, session and 2FA controller |
+| `authx-mongo` | MongoDB Engine | `27017` | `27017` | Persistent identity storage, session store, indexes |
+
+---
+
+## 🚀 Enterprise Features
+
+### 1. Active Device & Session Intelligence (Clerk & Google Style)
+
+- **Comprehensive Fingerprinting:** Zero-dependency User-Agent and IP address parsing extracting device category (Desktop/Mobile/Tablet), Operating System, browser vendor, and client IP.
+- **Concurrent Session Tracking:** Each active login allocates an isolated session document mapped with a unique session ID.
+- **Granular Control & Revocation:** Users can inspect all connected devices, identify the current device via active markers, selectively terminate individual sessions, or execute **"Sign Out All Other Devices"** in a single click.
+- **Heartbeat & Focus Verification:** Client-side event listeners trigger session verification upon browser window refocus.
+
+### 2. Two-Factor Authentication (TOTP 2FA)
+
+- **Standard RFC 6238 Compliance:** Interoperable with Google Authenticator, Authy, Microsoft Authenticator, and 1Password.
+- **Provisioning Workflow:** Generates cryptographically secure base32 secrets alongside high-resolution dynamic QR codes (`qrcode`).
+- **Challenge Interception:** When 2FA is active, initial password verification issues a temporary 2FA ticket requiring rolling 6-digit TOTP verification before issuing access tokens.
+
+### 3. Cryptographic Backup Recovery Codes
+
+- **Emergency Access:** Generates 8 cryptographically random single-use recovery codes formatted as `XXXX-XXXX`.
+- **Hashed Storage:** Backup codes are irreversibly hashed using `bcrypt` before database persistence to prevent leakages.
+- **Authenticated Regeneration:** Users can invalidate existing codes and generate fresh sets at any time by confirming their current password.
+
+### 4. Dual-Token JWT Architecture & Silent Refresh
+
+- **Access Token:** Short-lived (15 minutes) bearer token for validating authorized API requests.
+- **Refresh Token:** Long-lived (7 days) credential stored securely to negotiate token renewals.
+- **Transparent Refresh Interceptors:** The React frontend integrates Axios response interceptors that trap `401 Unauthorized` responses and silently request new access tokens in the background without UI interruption.
+
+### 5. Brute-Force Protection & Account Lockout
+
+- **Progressive Account Freezing:** Automatically locks accounts for 15 minutes after 5 consecutive failed login attempts.
+- **Sliding Window Rate Limiting:** Backed by `express-rate-limit` to restrict high-frequency authentication attempts per IP address.
+
+### 6. Federated Single Sign-On (Google OAuth 2.0)
+
+- **Passport.js Strategy:** Clean OAuth 2.0 handshakes managing profile discovery and email verification.
+- **Automated User Synchronization:** Links existing user profiles or creates verified accounts seamlessly.
+- **Secure Token Redirection:** Redirects to the frontend callback route (`/google-success`) with short-lived query credentials.
+
+### 7. Role-Based Access Control (RBAC)
+
+- **Hierarchical Authorization:** Clean separation of privileges between `user` and `admin` roles.
+- **Declarative Middleware Guards:** `roleMiddleware('admin')` protects administrative routes, user deletion, and role elevation.
+- **Client Route Guards:** Custom `<ProtectedRoute>` and `<AdminRoute>` components decode JWT payloads client-side for immediate UI restriction.
+
+### 8. Transactional HTML Email Engine
+
+- **Automated Dispatching:** Integrated via Nodemailer with environment-driven SMTP fallback support.
+- **Responsive HTML Templates:** Inline-styled templates for OTP Registration Verification, Password Recovery (10-minute expiry token), and Welcome notifications.
+
+---
+
+## 🛠 Tech Stack
+
+```
+Core Frameworks      : Node.js (v20+), Express.js (v5), React.js (v18)
+Database & ODM       : MongoDB, Mongoose (v9)
+Security & Auth      : JSON Web Tokens (JWT), bcryptjs, Speakeasy, Passport.js, Express-Rate-Limit
+Email Engine         : Nodemailer
+Testing Framework    : Jest (v30), Supertest (v7), Cross-Env
+DevOps & Containers  : Docker, Docker Compose, Nginx, GitHub Actions CI
+Frontend Routing & UI: React Router v6, Axios, React Toastify, Lucide Icons, Custom Modern CSS
+```
+
+---
+
+## 📡 REST API Reference
+
+### Authentication Endpoints (`/api/auth`)
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/signup` | Public | Register new account and dispatch 6-digit email OTP |
+| `POST` | `/api/auth/verify-otp` | Public | Verify registration OTP to activate user account |
+| `POST` | `/api/auth/login` | Public (Rate-limited) | Authenticate user; returns tokens or 2FA challenge |
+| `POST` | `/api/auth/login-2fa` | Public (Rate-limited) | Complete 2FA login via TOTP code or backup code |
+| `POST` | `/api/auth/forgot-password` | Public | Request password reset token via email |
+| `POST` | `/api/auth/reset-password/:token`| Public | Reset password using verified reset token |
+| `POST` | `/api/auth/refresh` | Public | Exchange valid Refresh Token for fresh Access Token |
+| `GET` | `/api/auth/google` | Public | Initiate Google OAuth 2.0 authentication flow |
+| `GET` | `/api/auth/google/callback` | Public | Google OAuth redirect handler and token emitter |
+
+### Session Management Endpoints (`/api/sessions`)
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/sessions` | Bearer Token | Retrieve all active sessions for the current user |
+| `DELETE` | `/api/sessions/:id` | Bearer Token | Terminate a specific session by ID |
+| `POST` | `/api/sessions/revoke-others` | Bearer Token | Terminate all active sessions except the current one |
+
+### Two-Factor Authentication Endpoints (`/api/2fa`)
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/2fa/status` | Bearer Token | Get current 2FA status and remaining backup codes count |
+| `POST` | `/api/2fa/setup` | Bearer Token | Generate TOTP secret, backup codes, and QR code URI |
+| `POST` | `/api/2fa/verify` | Bearer Token | Verify TOTP code and enable 2FA on the account |
+| `POST` | `/api/2fa/disable` | Bearer Token | Disable 2FA by providing password and TOTP code |
+| `POST` | `/api/2fa/regenerate-backup-codes` | Bearer Token | Invalidate old and generate 8 new backup recovery codes |
+
+### User & Administration Endpoints (`/api/users`)
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/users` | Admin Role | List all registered users with metadata |
+| `DELETE` | `/api/users/:id` | Admin Role | Delete a user account by ID |
+| `PUT` | `/api/users/:id/role` | Admin Role | Update user role (`user` / `admin`) |
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+AuthX features an automated test pipeline built with **Jest** and **Supertest**, delivering comprehensive test coverage across authentication, sessions, security, and authorization.
+
 ```bash
+# Execute test suite locally
+npm test
+```
+
+### Test Suite Execution Status
+
+```
+PASS tests/auth.test.js
+PASS tests/admin.test.js
+PASS tests/password.test.js
+PASS tests/protected.test.js
+PASS tests/session.test.js
+PASS tests/oauth.test.js
+
+Test Suites: 6 passed, 6 total
+Tests:       20 passed, 20 total
+Snapshots:   0 total
+Status:      100% Passing
+```
+
+### Enterprise Pipeline Safeguards
+
+- **Isolated Test Database (`authx_test`):** Jest initializes a dedicated test database cluster, preventing destructive collisions with development data.
+- **Deterministic Sequential Execution (`--runInBand`):** Eliminates asynchronous race conditions during database read/write cycles.
+- **Stateless Environment Encapsulation (`tests/envMock.js`):** Tests run on reproducible mock configuration, allowing tests to pass instantly on any freshly cloned machine.
+- **SMTP Stream Interception (`jest.mock`):** Nodemailer network connections are mocked during test runs, preventing network latency and socket timeouts in CI environments.
+- **GitHub Actions CI:** Automated pipeline running on Ubuntu with containerized MongoDB services across every pull request and push to `main`.
+
+---
+
+## ⚡ Quick Start Guide
+
+### Method 1: Docker Container Orchestration (Recommended)
+
+Ensure [Docker Desktop](https://www.docker.com/) is installed and running, then execute:
+
+```bash
+# Clone the repository
+git clone https://github.com/SailokeshNalabothu/AuthX.git
+cd AuthX
+
+# Launch all 3 services (Frontend, Backend, MongoDB)
 docker-compose up --build
 ```
-*(This command automatically downloads MongoDB, maps the React Frontend bindings, processes the secure internal environment arrays statically, and launches securely exposing port `3000`)*
 
-### Method 2: Manual Native Execution
-If you prefer running manual Node processes on older systems:
+- **Frontend Application:** [http://localhost:3000](http://localhost:3000)
+- **Backend API Server:** [http://localhost:5000](http://localhost:5000)
+- **MongoDB Database:** `localhost:27017`
 
-1. Connect a native instance of MongoDB on `127.0.0.1:27017`.
-2. Create your `.env` locally mirroring standard secrets format.
-3. Run `npm install` and `npm run dev` in the root folder (Starts Backend).
-4. Run `cd authx-frontend`, `npm install`, and `npm start` (Starts Frontend).
+### Method 2: Native Manual Installation
+
+#### Prerequisites
+
+- **Node.js:** v20.x or higher
+- **MongoDB:** Running locally on `mongodb://127.0.0.1:27017`
+- **npm:** v9.x or higher
+
+#### 1. Backend Setup
+
+```bash
+# Install backend dependencies
+npm install
+
+# Create environment configuration
+cp .env.example .env
+
+# Start development server
+npm run dev
+```
+
+The backend API will initialize on `http://localhost:5000`.
+
+#### 2. Frontend Setup
+
+```bash
+# Navigate to frontend directory
+cd authx-frontend
+
+# Install frontend dependencies
+npm install
+
+# Start React development server
+npm start
+```
+
+The frontend client will open on `http://localhost:3000`.
 
 ---
 
+## ⚙️ Environment Configuration
+
+### Backend Environment (`.env`)
+
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `PORT` | HTTP server port | `5000` |
+| `NODE_ENV` | Runtime environment (`development` / `production` / `test`) | `development` |
+| `MONGO_URI` | MongoDB connection connection string | `mongodb://127.0.0.1:27017/authx` |
+| `ACCESS_TOKEN_SECRET` | Cryptographic secret for signing Access Tokens | `your_access_token_secret` |
+| `REFRESH_TOKEN_SECRET`| Cryptographic secret for signing Refresh Tokens | `your_refresh_token_secret` |
+| `JWT_SECRET` | Fallback signing secret | `your_fallback_secret` |
+| `EMAIL_USER` | SMTP email address for transactional notifications | `your_email@gmail.com` |
+| `EMAIL_PASS` | SMTP app password or credentials | `your_app_password` |
+| `GOOGLE_CLIENT_ID` | Google Cloud OAuth Client ID | `your_client_id.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET`| Google Cloud OAuth Client Secret | `your_client_secret` |
+| `CLIENT_URL` | Frontend origin for CORS and OAuth redirection | `http://localhost:3000` |
+
+### Frontend Environment (`authx-frontend/.env`)
+
+| Variable | Description | Default / Example |
+| :--- | :--- | :--- |
+| `REACT_APP_API_URL` | Base endpoint for the backend REST API | `http://localhost:5000/api` |
+
+---
+
+## 📂 Project Directory Structure
+
+```
+AuthX/
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # GitHub Actions CI workflow
+├── authx-frontend/              # React 18 SPA Client
+│   ├── public/                  # Static assets & index.html
+│   ├── src/
+│   │   ├── components/          # Reusable UI cards, modal guards, navbars
+│   │   ├── pages/               # Login, Signup, Dashboard, 2FA, Admin pages
+│   │   ├── services/            # Axios instance & token refresh interceptors
+│   │   ├── App.js               # Route declarations & route guards
+│   │   └── index.css            # Modern SaaS design system & theme
+│   ├── Dockerfile               # Multi-stage production Nginx container
+│   ├── nginx.conf               # Frontend reverse proxy configuration
+│   └── package.json
+├── src/                         # Express Backend API
+│   ├── config/                  # Database, Passport.js, & OAuth configurations
+│   ├── controllers/             # Auth, Session, 2FA, & User business logic
+│   ├── middleware/              # JWT verification, RBAC, & rate limiters
+│   ├── models/                  # Mongoose schemas (User, Session)
+│   ├── routes/                  # Modular express route definitions
+│   ├── services/                # Nodemailer email dispatch service
+│   ├── templates/               # Transactional HTML email templates
+│   ├── utils/                   # Device fingerprinting & token helpers
+│   └── app.js                   # Express application setup
+├── tests/                       # Automated Jest test suites
+│   ├── admin.test.js            # RBAC & administrative operation tests
+│   ├── auth.test.js             # Signup, OTP verification, & login tests
+│   ├── envMock.js               # Mock environment variables for testing
+│   ├── oauth.test.js            # Google OAuth strategy tests
+│   ├── password.test.js         # Reset password & recovery token tests
+│   ├── protected.test.js        # Route guard verification tests
+│   ├── session.test.js          # Multi-device session & revocation tests
+│   └── setup.js                 # Global Jest configuration hooks
+├── Dockerfile                   # Backend Docker container definition
+├── docker-compose.yml           # Multi-container orchestration (Dev/Local)
+├── docker-compose.prod.yml      # Production container orchestration
+├── package.json                 # Backend dependencies & test scripts
+├── server.js                    # Server entry point & DB connection
+└── README.md                    # Project documentation
+```
+
+---
+
+## 🔒 Security Hardening
+
+- **Salted Hashing:** User passwords and recovery codes are hashed using `bcryptjs` with high salt rounds.
+- **Ephemeral Token Lifetimes:** Access tokens expire in 15 minutes to reduce exposure windows.
+- **Strict Scope Authorization:** Granular RBAC middleware verifies user role on every protected query.
+- **CORS Protection:** Cross-Origin Resource Sharing is strictly constrained to authorized client origins.
+- **Stateless Revocation:** Sessions and refresh tokens are verified against persistent database records, allowing instant revocation across all devices.
+
+---
+
+## 📄 License
+
+This project is licensed under the [ISC License](https://opensource.org/licenses/ISC).
