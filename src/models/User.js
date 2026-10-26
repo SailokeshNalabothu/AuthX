@@ -51,7 +51,25 @@ const userSchema = new mongoose.Schema(
     },
     lockUntil: {
       type: Date
-    }
+    },
+
+    // TWO-FACTOR AUTHENTICATION (TOTP)
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false
+    },
+    twoFactorSecret: {
+      type: String
+    },
+    twoFactorTempSecret: {
+      type: String
+    },
+    twoFactorBackupCodes: [
+      {
+        codeHash: String,
+        used: { type: Boolean, default: false }
+      }
+    ]
   },
   {
     timestamps: true

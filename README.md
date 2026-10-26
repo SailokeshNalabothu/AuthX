@@ -9,6 +9,9 @@
 ## 🚀 Features
 
 ### 🔐 Advanced Security & Authentication
+- **🛡️ Active Device & Session Intelligence (Google / Clerk style)**: Multi-session tracking with zero-dependency User-Agent & IP parsing (device type, OS, browser, geolocation). Instant single-device revocation and bulk "Sign Out All Other Devices" with real-time tab-focus verification and heartbeat checks.
+- **🔐 Two-Factor Authentication (TOTP 2FA)**: Full RFC 6238 TOTP implementation compatible with Google Authenticator, Authy, and 1Password. Scans QR code or manual secret, validates rolling 6-digit codes, and intercepts logins with 2FA challenges.
+- **🔄 Emergency Backup Recovery Codes**: Issues 8 single-use cryptographically random backup codes (`XXXX-XXXX`) securely hashed with `bcrypt`. Includes on-demand password-verified code regeneration to prevent account lockouts.
 - **Dual JWT Architecture**: Short-lived Access Tokens (15m) paired with long-lived Refresh Tokens (7d) stored securely.
 - **Axios Interceptors**: Silent background token refreshing in React to maintain session continuity without UX interruption.
 - **Account Lockout & Brute Force Protection**: Tracks failed login attempts and temporarily limits accounts (e.g., 15-minute freeze after 5 failures) paired with API rate limiting (`express-rate-limit`).
@@ -31,7 +34,7 @@
 
 The backend is strictly verified by an extensive automated CI/CD testing pipeline using **Jest** and **Supertest**, mapping across APIs, Middlewares, and Databases.
 
-**Current Status:** `100% Passing (18/18 assertions complete)`
+**Current Status:** `100% Passing (20/20 assertions complete across 6 test suites)`
 
 To guarantee flawless pipeline stability regardless of where the repository is cloned, several advanced testing integrations were configured:
 1. **Isolated Testing Databases (`authx_test`)**: A fully separate MongoDB cluster is dynamically initialized when triggering Jest, completely shielding production/development data from test mutations.

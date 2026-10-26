@@ -17,9 +17,9 @@ const Signup = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signup({ email, password });
+      const res = await signup({ email, password });
       toast.success("Signup successful! Please check your email for the OTP.");
-      navigate('/verify-otp', { state: { email } });
+      navigate('/verify-otp', { state: { email, devOtp: res.data?.devOtp } });
     } catch (err) {
       toast.error(err.response?.data?.msg || "An error occurred during signup");
     } finally {

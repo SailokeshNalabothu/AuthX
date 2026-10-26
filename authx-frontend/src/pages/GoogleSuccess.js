@@ -10,10 +10,14 @@ const GoogleSuccess = () => {
     const params = new URLSearchParams(location.search);
     const accessToken = params.get('accessToken');
     const refreshToken = params.get('refreshToken');
+    const sessionId = params.get('sessionId');
 
     if (accessToken && refreshToken) {
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
+      if (sessionId) {
+        localStorage.setItem('sessionId', sessionId);
+      }
       toast.success("Successfully logged in with Google!");
       navigate('/dashboard');
     } else {

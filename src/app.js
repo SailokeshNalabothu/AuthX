@@ -30,6 +30,12 @@ app.use('/api/auth', authRoutes);
 const userRoutes = require('./routes/userRoutes');
 app.use('/api/users', userRoutes);
 
+const sessionRoutes = require('./routes/sessionRoutes');
+app.use('/api/sessions', sessionRoutes);
+
+const twoFactorRoutes = require('./routes/twoFactorRoutes');
+app.use('/api/2fa', twoFactorRoutes);
+
 const User = require('./models/User');
 
 app.get('/create-user', async (req, res) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { verifyOTP } from '../services/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -10,6 +10,13 @@ const VerifyOTP = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const email = location.state?.email;
+  const devOtp = location.state?.devOtp;
+
+  useEffect(() => {
+    if (devOtp) {
+      setOtp(devOtp);
+    }
+  }, [devOtp]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,6 +37,12 @@ const VerifyOTP = () => {
       <div className="auth-card">
         <h2>Verify Account</h2>
         <p className="subtitle">We sent a 6-digit OTP to <br/><b>{email || 'your email'}</b></p>
+
+        {devOtp && (
+          <div className="success-banner" style={{ fontSize: '13px', textAlign: 'center', marginBottom: '16px' }}>
+            ⚡ <b>Dev Mode Active:</b> Auto-filled OTP <b>{devOtp}</b>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="input-group">

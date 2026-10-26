@@ -36,10 +36,20 @@ passport.use(
           { expiresIn: '7d' }
         );
 
-        user.refreshToken = refreshToken;
-        await user.save();
+        const Session = require('../models/Session');
+        const session = await Session.create({
+          userId: user._id,
+          refreshToken,
+          deviceType: 'Desktop',
+          browser: 'Google OAuth',
+          os: 'Web',
+          ipAddress: '127.0.0.1',
+          location: 'SSO Login',
+          lastActiveAt: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        });
 
-        return done(null, { accessToken, refreshToken });
+        return done(null, { accessToken, refreshToken, sessionId: session._id });
 
       } catch (err) {
         return done(err, null);
