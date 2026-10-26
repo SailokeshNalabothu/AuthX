@@ -37,6 +37,7 @@ The backend is strictly verified by an extensive automated CI/CD testing pipelin
 **Current Status:** `100% Passing (20/20 assertions complete across 6 test suites)`
 
 To guarantee flawless pipeline stability regardless of where the repository is cloned, several advanced testing integrations were configured:
+
 1. **Isolated Testing Databases (`authx_test`)**: A fully separate MongoDB cluster is dynamically initialized when triggering Jest, completely shielding production/development data from test mutations.
 2. **Synchronous Execution (`--runInBand`)**: Jest handles test-groupings purely sequentially. This bypasses structural parallel Database write-collisions that heavily trigger destructive race conditions between mutually exclusive test suites.
 3. **Mocking SMTP Services (`jest.mock`)**: External Nodemailer SMTP network streams run through explicit mock interceptions. This massively accelerates sequence durations on CI/CD servers and entirely prevents `5000ms Hook Timeout` exceptions dropping APIs due to heavy email dispatching overheads.
