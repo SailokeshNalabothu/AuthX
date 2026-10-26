@@ -5,7 +5,7 @@
 [![React Version](https://img.shields.io/badge/react-18.x-61dafb.svg)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/database-MongoDB-47A248.svg)](https://www.mongodb.com/)
 [![Docker Ready](https://img.shields.io/badge/docker-orchestrated-2496ED.svg)](https://www.docker.com/)
-[![Test Suite](https://img.shields.io/badge/tests-49%2F49%20passing-success.svg)](https://jestjs.io/)
+[![Test Suite](https://img.shields.io/badge/tests-64%2F64%20passing-success.svg)](https://jestjs.io/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
 > **AuthX** is a production-hardened, full-stack identity, session intelligence, and access management developer platform engineered with **Node.js**, **Express**, **MongoDB**, and **React**. Designed to meet modern enterprise SaaS standards (Stripe, Clerk & Supabase style), AuthX delivers a developer-first platform with scoped API keys (PATs), signed outbound webhooks with HMAC SHA-256 signatures, 1-click cryptographic email verification, proactive anomaly detection, instant account lockdown alerts, immutable security audit logs with CSV export, interactive personal security timelines, active multi-session tracking, RFC 6238 TOTP two-factor authentication, cryptographic backup recovery codes, dual-token JWT architecture with silent refresh interceptors, rate-limiting brute-force defenses, Google OAuth 2.0 SSO, and role-based access control.
@@ -31,6 +31,7 @@
     - [10. Federated Single Sign-On (Google OAuth 2.0)](#10-federated-single-sign-on-google-oauth-20)
     - [11. Role-Based Access Control (RBAC)](#11-role-based-access-control-rbac)
     - [12. ⚡ Developer Platform: Scoped API Keys (PATs) \& Signed Outbound Webhooks](#12--developer-platform-scoped-api-keys-pats--signed-outbound-webhooks)
+    - [13. 👑 Enterprise Admin Suite: Analytics, User Impersonation \& Bulk Operations](#13--enterprise-admin-suite-analytics-user-impersonation--bulk-operations)
   - [🛠 Tech Stack](#-tech-stack)
   - [📡 REST API Reference](#-rest-api-reference)
     - [Authentication Endpoints (`/api/auth`)](#authentication-endpoints-apiauth)
@@ -181,6 +182,25 @@ graph TD
   - Replay Attack Mitigation & Timing-Safe Verification: Receivers can verify authenticity and timestamp freshness via constant-time comparison (`crypto.timingSafeEqual`).
   - Comprehensive Delivery Observability: Full audit trail recording HTTP status codes, roundtrip latency, request bodies, and signature headers for every dispatch, with a built-in "Send Test Ping" console.
 
+### 13. 👑 Enterprise Admin Suite: Analytics, User Impersonation & Bulk Operations
+
+- **Security & Auth Analytics Intelligence:**
+  - **Registration Velocity:** Real-time 24h counters and 7-day daily onboarding velocity visual charts.
+  - **Account Health Breakdown:** Active vs. locked account ratio gauge with automatic brute-force alert signals.
+  - **Failed Login Attempts Trend:** 24h & 7d forensics tracking credential-stuffing and unauthorized access spikes.
+  - **Auth Provider Distribution:** Federated Google OAuth 2.0 SSO vs. Native Email/Password comparative analytics.
+  - **Platform Health KPIs:** Real-time 2FA adoption rate, active device sessions, registered API keys, and active webhooks.
+- **User Impersonation ("Login as User"):**
+  - Enables administrators to safely impersonate any user account for live customer support and troubleshooting.
+  - Issues temporary scoped impersonation JWTs while preserving the admin's original credentials in secure client storage.
+  - Persistent, high-visibility amber floating banner: `"⚠️ Viewing as user@example.com (Exit Impersonation)"`.
+  - One-click instant session termination: Restores administrator privileges and routes directly back to `/admin`.
+  - Immutable audit logging: Tracks `USER_IMPERSONATION_STARTED` and `USER_IMPERSONATION_ENDED` with forensic actor metadata.
+- **Enterprise Bulk Operations:**
+  - Multi-select checkbox inventory for high-velocity user management.
+  - Sticky action bar supporting **Bulk Lock**, **Bulk Unlock**, **Bulk Role Elevation** (`user` <-> `admin`), and **Bulk Deletion**.
+  - One-click **CSV Directory Export** streaming complete identity metadata for audits and compliance.
+
 ---
 
 ## 🛠 Tech Stack
@@ -249,6 +269,11 @@ Frontend Routing & UI: React Router v6, Axios, React Toastify, Custom Modern CSS
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/users` | Admin Role | List all registered users with metadata and lock states |
+| `GET` | `/api/users/analytics` | Admin Role | Real-time auth & security intelligence: 24h/7d registration velocity, active vs. locked, failed logins trend, OAuth ratio |
+| `POST` | `/api/users/:id/impersonate`| Admin Role | Generate scoped impersonation JWT session to troubleshoot as that target user |
+| `POST` | `/api/users/exit-impersonation` | Bearer Token | Cleanly terminate active impersonation session and restore administrator context |
+| `POST` | `/api/users/bulk-action` | Admin Role | Batch operations: `lock`, `unlock`, `changeRole`, `delete` across selected user IDs |
+| `GET` | `/api/users/export-users-csv` | Admin Role | Stream complete organizational user directory with identity metadata as CSV |
 | `DELETE` | `/api/users/:id` | Admin Role | Delete a user account by ID |
 | `PUT` | `/api/users/:id/role` | Admin Role | Update user role (`user` / `admin`) |
 | `PUT` | `/api/users/:id/unlock` | Admin Role | Unlock a locked user account immediately |
@@ -336,6 +361,7 @@ npm test
 ### Test Suite Execution Status
 
 ```
+PASS tests/enterpriseAdminSuite.test.js
 PASS tests/developerPlatform.test.js
 PASS tests/anomalyAndAudit.test.js
 PASS tests/admin.test.js
@@ -345,8 +371,8 @@ PASS tests/session.test.js
 PASS tests/protected.test.js
 PASS tests/oauth.test.js
 
-Test Suites: 8 passed, 8 total
-Tests:       49 passed, 49 total
+Test Suites: 9 passed, 9 total
+Tests:       64 passed, 64 total
 Snapshots:   0 total
 Status:      100% Passing (All Suites Green)
 ```

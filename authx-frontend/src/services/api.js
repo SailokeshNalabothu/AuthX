@@ -112,4 +112,11 @@ export const getWebhookDeliveries = (id) => api.get(`/webhooks/${id}/deliveries`
 export const getDeveloperProfile = () => api.get(`/developer/v1/profile`);
 export const getDeveloperUsers = () => api.get(`/developer/v1/users`);
 
+// 👑 Enterprise Admin Suite (Feature 5)
+export const getAdminAnalytics = () => api.get(`/users/analytics`);
+export const impersonateUser = (id) => api.post(`/users/${id}/impersonate`);
+export const exitImpersonation = (data) => api.post(`/users/exit-impersonation`, data);
+export const bulkUserAction = (data) => api.post(`/users/bulk-action`, data);
+export const exportUsersCsv = () => api.get(`/users/export-users-csv`, { responseType: 'blob' });
+
 export default api;

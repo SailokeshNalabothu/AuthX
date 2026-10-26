@@ -14,11 +14,13 @@ import VerifyEmail from './pages/VerifyEmail';
 import Developer from './pages/Developer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import ImpersonationBanner from './components/ImpersonationBanner';
 
 function App() {
   return (
     <>
       <Router>
+        <ImpersonationBanner />
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/signup" element={<Signup />} />

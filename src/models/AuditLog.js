@@ -34,7 +34,10 @@ const auditLogSchema = new mongoose.Schema(
         'API_KEY_CREATED',
         'API_KEY_REVOKED',
         'WEBHOOK_CREATED',
-        'WEBHOOK_DELETED'
+        'WEBHOOK_DELETED',
+        'USER_IMPERSONATION_STARTED',
+        'USER_IMPERSONATION_ENDED',
+        'BULK_ACTION_EXECUTED'
       ],
       index: true
     },
