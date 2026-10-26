@@ -13,6 +13,7 @@ import {
  } from '../services/api';
  import { toast } from 'react-toastify';
  import { Link, useNavigate } from 'react-router-dom';
+ import ThemeToggle from '../components/ThemeToggle';
  
  const Admin = () => {
    const [activeTab, setActiveTab] = useState('analytics'); // 'analytics' | 'users' | 'audit'
@@ -325,7 +326,8 @@ import {
              ADMIN SUITE
            </span>
          </div>
-         <div style={{ display: 'flex', gap: '10px' }}>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+           <ThemeToggle />
            <Link to="/developer" className="btn-secondary" style={{ textDecoration: 'none', background: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', borderColor: '#c7d2fe', fontWeight: '600' }}>
              ⚡ Developer Platform
            </Link>

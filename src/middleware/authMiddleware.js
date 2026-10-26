@@ -4,23 +4,31 @@ const User = require('../models/User');
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    let token = null;
 
-    if (!authHeader) {
+    // 1. Check httpOnly Cookie (Hardened against XSS token theft)
+    if (req.cookies && req.cookies.accessToken) {
+      token = req.cookies.accessToken;
+    }
+
+    // 2. Fallback to Authorization Header (for API clients, Supertest, cURL)
+    if (!token && req.headers.authorization) {
+      if (req.headers.authorization.startsWith("Bearer ")) {
+        token = req.headers.authorization.split(" ")[1];
+      } else {
+        return res.status(401).json({ msg: "Invalid token format" });
+      }
+    }
+
+    if (!token) {
       return res.status(401).json({ msg: "No token provided" });
     }
-
-    if (!authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ msg: "Invalid token format" });
-    }
-
-    const token = authHeader.split(" ")[1];
 
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
     // 🛡️ Real-time Session Revocation Check:
-    // If client passes x-session-id, verify the session was not revoked from another device
-    const sessionId = req.headers['x-session-id'];
+    // Support either x-session-id header or cookie
+    const sessionId = req.headers['x-session-id'] || (req.cookies ? req.cookies.sessionId : null);
     if (sessionId) {
       const session = await Session.findById(sessionId);
       if (session && session.isRevoked) {

@@ -9,10 +9,13 @@ import {
   verify2FA,
   disable2FA,
   regenerateBackupCodes,
-  getMyAuditLogs
+  getMyAuditLogs,
+  logoutUser
 } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import SecurityHealthScore from '../components/SecurityHealthScore';
+import ThemeToggle from '../components/ThemeToggle';
 
 const Dashboard = () => {
   const [data, setData] = useState('');
@@ -126,7 +129,12 @@ const Dashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (e) {
+      // ignore
+    }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('sessionId');
@@ -295,17 +303,23 @@ const Dashboard = () => {
   return (
     <div className="dashboard-container">
       <nav className="dashboard-nav">
-        <div className="logo">AuthX</div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div className="logo" style={{ fontSize: '20px', fontWeight: '800' }}>AuthX</div>
+          <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', fontWeight: 700 }}>
+            SECURITY HUB
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <ThemeToggle />
           <button 
             onClick={() => navigate('/developer')} 
             className="btn-secondary" 
-            style={{marginRight: '12px', background: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', borderColor: '#c7d2fe', fontWeight: '600'}}
+            style={{background: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', borderColor: '#c7d2fe', fontWeight: '600'}}
           >
-            ⚡ Developer Platform
+            ⚡ Developer
           </button>
           {user?.role === 'admin' && (
-            <button onClick={() => navigate('/admin')} className="btn-secondary" style={{marginRight: '12px'}}>Admin Panel</button>
+            <button onClick={() => navigate('/admin')} className="btn-secondary">Admin Panel</button>
           )}
           <button onClick={handleLogout} className="btn-secondary">Logout</button>
         </div>
@@ -314,8 +328,18 @@ const Dashboard = () => {
       <main className="dashboard-content">
         <header className="dashboard-header">
           <h1>Welcome, {user?.userId || 'User'}!</h1>
-          <p className="subtitle">You have successfully authenticated via JWT.</p>
+          <p className="subtitle">You have successfully authenticated via JWT & httpOnly secure cookies.</p>
         </header>
+
+        {/* 🛡️ GAMIFIED SECURITY HEALTH SCORE CENTER */}
+        <SecurityHealthScore
+          user={user}
+          twoFactorStatus={twoFactorStatus}
+          sessions={sessions}
+          onEnable2FA={handleStart2FASetup}
+          onRegenerateBackupCodes={() => { setShowRegenModal(true); setRegenStep(1); setRegenPassword(''); }}
+          onRevokeOthers={handleRevokeOthers}
+        />
 
         <div className="dashboard-cards">
           <div className="card">

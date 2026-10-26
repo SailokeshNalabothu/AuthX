@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
@@ -8,7 +9,14 @@ const session = require('express-session');
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+  origin: (origin, callback) => {
+    // Reflect request origin to allow credentials from web clients and test runners
+    callback(null, true);
+  },
+  credentials: true
+}));
 
 app.use(session({
   secret: "secret",

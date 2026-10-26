@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { signup } from '../services/api';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter';
+import ThemeToggle from '../components/ThemeToggle';
 
 const Signup = () => {
   const [email, setEmail] = useState('');
@@ -30,6 +32,9 @@ const Signup = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+          <ThemeToggle compact={true} />
+        </div>
         {isRegistered ? (
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
             <div style={{
@@ -94,11 +99,12 @@ const Signup = () => {
             <label>Password</label>
             <input 
               type="password" 
-              placeholder="Create a password" 
+              placeholder="Create a strong password" 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
               required
             />
+            <PasswordStrengthMeter password={password} />
           </div>
           
           <button type="submit" className="btn-primary" disabled={loading}>

@@ -1,15 +1,51 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-:root {
-  --bg-color: #f4f6f8;
+:root, [data-theme="light"] {
+  --bg-color: #f8fafc;
   --card-bg: #ffffff;
-  --text-main: #111827;
-  --text-muted: #6b7280;
+  --card-bg-glass: rgba(255, 255, 255, 0.88);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
   --primary: #4f46e5;
   --primary-hover: #4338ca;
   --danger: #ef4444;
   --success: #10b981;
-  --border: #e5e7eb;
+  --warning: #f59e0b;
+  --border: #e2e8f0;
+  --border-glow: rgba(79, 70, 229, 0.15);
+  --input-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg-color: #0b0f19;
+  --card-bg: #111827;
+  --card-bg-glass: rgba(17, 24, 39, 0.8);
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --danger: #f87171;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --border: #1f2937;
+  --border-glow: rgba(99, 102, 241, 0.25);
+  --input-bg: #1f2937;
+}
+
+[data-theme="cyber"] {
+  --bg-color: #030712;
+  --card-bg: rgba(6, 15, 33, 0.88);
+  --card-bg-glass: rgba(4, 11, 26, 0.9);
+  --text-main: #e0f2fe;
+  --text-muted: #38bdf8;
+  --primary: #00f0ff;
+  --primary-hover: #00c8d6;
+  --danger: #ff0055;
+  --success: #00ff9d;
+  --warning: #ffb703;
+  --border: rgba(0, 240, 255, 0.28);
+  --border-glow: rgba(0, 240, 255, 0.5);
+  --input-bg: rgba(8, 20, 42, 0.85);
 }
 
 * {
@@ -75,6 +111,8 @@ body {
 .input-group input {
   width: 100%;
   padding: 12px 16px;
+  background: var(--input-bg);
+  color: var(--text-main);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 15px;
@@ -1048,4 +1086,42 @@ button {
   border-color: #f59e0b;
   transform: translateY(-1px);
 }
+
+/* ⚡ CYBER MODE EFFECTS & GLASSMORPHISM */
+[data-theme="cyber"] body {
+  background-image: 
+    radial-gradient(ellipse at 50% 0%, rgba(0, 240, 255, 0.12), transparent 60%),
+    radial-gradient(ellipse at 85% 85%, rgba(255, 0, 127, 0.08), transparent 50%),
+    linear-gradient(rgba(0, 240, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+}
+
+[data-theme="cyber"] .auth-card,
+[data-theme="cyber"] .card,
+[data-theme="cyber"] .two-factor-card,
+[data-theme="cyber"] .sessions-card,
+[data-theme="cyber"] .health-score-card,
+[data-theme="cyber"] .analytics-card {
+  box-shadow: 0 8px 32px rgba(0, 240, 255, 0.12), inset 0 0 0 1px rgba(0, 240, 255, 0.25) !important;
+  border-color: rgba(0, 240, 255, 0.35) !important;
+}
+
+[data-theme="cyber"] .btn-primary {
+  background: linear-gradient(135deg, #00f0ff, #0077ff) !important;
+  color: #030712 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 18px rgba(0, 240, 255, 0.35) !important;
+}
+
+[data-theme="cyber"] .btn-primary:hover {
+  box-shadow: 0 6px 24px rgba(0, 240, 255, 0.6) !important;
+  transform: translateY(-1px);
+}
+
+/* Smooth Fluid Transitions across all themes */
+body, .auth-card, .card, .dashboard-nav, .dashboard-container, .analytics-card, .two-factor-card, .sessions-card, input, button {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease, box-shadow 0.25s ease;
+}
+
 

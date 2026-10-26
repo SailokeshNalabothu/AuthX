@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { login, login2FA, requestUnlock } from '../services/api';
+import { login, login2FA, requestUnlock, forgotPassword } from '../services/api';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import ThemeToggle from '../components/ThemeToggle';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [unlockLoading, setUnlockLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [isLockedError, setIsLockedError] = useState(false);
 
   // 2FA Challenge States
@@ -53,6 +55,22 @@ const Login = () => {
       toast.error(err.response?.data?.msg || "Failed to dispatch unlock link.");
     } finally {
       setUnlockLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.info("Please enter your email address first to receive a password reset link.");
+      return;
+    }
+    try {
+      setResetLoading(true);
+      await forgotPassword({ email });
+      toast.success("Password reset link sent to your email!");
+    } catch (err) {
+      toast.error(err.response?.data?.msg || "Failed to send reset link.");
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -116,6 +134,9 @@ const Login = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+          <ThemeToggle compact={true} />
+        </div>
         {!twoFactorRequired ? (
           <>
             <h2>Welcome Back</h2>
@@ -180,13 +201,23 @@ const Login = () => {
               <div className="input-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <label style={{ margin: 0 }}>Password</label>
-                  <button
-                    type="button"
-                    onClick={handleRequestUnlock}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer', padding: 0 }}
-                  >
-                    Account Locked?
-                  </button>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={resetLoading}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                    >
+                      {resetLoading ? 'Sending...' : 'Forgot?'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRequestUnlock}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                    >
+                      Locked?
+                    </button>
+                  </div>
                 </div>
                 <input 
                   type="password" 

@@ -13,7 +13,9 @@ const {
   lockAccount,
   lockAccountDirect,
   requestUnlock,
-  unlockAccount
+  unlockAccount,
+  logout,
+  setAuthCookies
 } = require('../controllers/authController');
 const rateLimit = require('express-rate-limit');
 const { logAuditEvent } = require('../services/auditService');
@@ -34,6 +36,7 @@ router.post('/login-2fa', loginLimiter, login2FA);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 router.post('/refresh', refreshTokenHandler);
+router.post('/logout', logout);
 
 // 🔒 Instant Account Lock endpoints
 router.post('/lock-account', lockAccount);
@@ -69,6 +72,10 @@ router.get(
       }
     } catch (e) {
       console.error("Google callback audit log error:", e);
+    }
+
+    if (req.user?.accessToken) {
+      setAuthCookies(res, req.user.accessToken, req.user.refreshToken, req.user.sessionId);
     }
 
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';

@@ -75,13 +75,17 @@ const flexibleAuth = async (req, res, next) => {
     return apiKeyAuth(req, res, next);
   }
 
-  // Fallback to standard JWT auth
+  // Fallback to standard JWT auth (Cookie or Bearer header)
   try {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let token = req.cookies?.accessToken;
+    if (!token && authHeader?.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+
+    if (!token) {
       return res.status(401).json({ msg: "No authorization credentials provided" });
     }
 
-    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
     const sessionId = req.headers['x-session-id'];

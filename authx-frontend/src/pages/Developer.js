@@ -12,6 +12,7 @@ import {
   getWebhookDeliveries
 } from '../services/api';
 import { toast } from 'react-toastify';
+import ThemeToggle from '../components/ThemeToggle';
 
 const ALL_SCOPES = [
   { id: 'read:profile', label: 'read:profile', desc: 'Read your profile identity and metadata' },
@@ -239,7 +240,8 @@ const Developer = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <ThemeToggle />
           <button
             onClick={() => navigate('/dashboard')}
             className="btn-secondary"

@@ -5,7 +5,7 @@
 [![React Version](https://img.shields.io/badge/react-18.x-61dafb.svg)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/database-MongoDB-47A248.svg)](https://www.mongodb.com/)
 [![Docker Ready](https://img.shields.io/badge/docker-orchestrated-2496ED.svg)](https://www.docker.com/)
-[![Test Suite](https://img.shields.io/badge/tests-64%2F64%20passing-success.svg)](https://jestjs.io/)
+[![Test Suite](https://img.shields.io/badge/tests-71%2F71%20passing-success.svg)](https://jestjs.io/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
 > **AuthX** is a production-hardened, full-stack identity, session intelligence, and access management developer platform engineered with **Node.js**, **Express**, **MongoDB**, and **React**. Designed to meet modern enterprise SaaS standards (Stripe, Clerk & Supabase style), AuthX delivers a developer-first platform with scoped API keys (PATs), signed outbound webhooks with HMAC SHA-256 signatures, 1-click cryptographic email verification, proactive anomaly detection, instant account lockdown alerts, immutable security audit logs with CSV export, interactive personal security timelines, active multi-session tracking, RFC 6238 TOTP two-factor authentication, cryptographic backup recovery codes, dual-token JWT architecture with silent refresh interceptors, rate-limiting brute-force defenses, Google OAuth 2.0 SSO, and role-based access control.
@@ -347,6 +347,15 @@ function verifyAuthXWebhook(rawBody, signatureHeader, secret, toleranceSeconds =
 }
 ```
 
+### 14. 🎨 Premium UX Polish & Security Center
+
+AuthX delivers a state-of-the-art security intelligence experience inspired by modern cyber-defense tools:
+
+- **🛡️ Gamified Security Health Score:** An interactive radial gauge on the dashboard computing real-time account defense posture (0–100%). Evaluates email verification, RFC 6238 TOTP 2FA activation, emergency backup code availability, active multi-device hygiene, and storage hardening, accompanied by one-click remediation action cards.
+- **⚡ Live Password Strength Analyzer:** Integrated directly into signup and password reset forms. Evaluates Shannon information entropy ($E = L \times \log_2(R)$), estimates GPU cluster brute-force crack time (from seconds to centuries), performs real-time dictionary blacklist lookups against top common breached passwords, and renders a 5-segment glowing visual strength meter.
+- **🌙 Sleek Dark / ⚡ Cyber Mode Engine:** Glassmorphic theme switcher mounted across all navigation headers and auth cards. Supports `Light`, `Dark` (`#0b0f19` midnight slate), and `Cyber` (`#030712` with neon cyan `#00f0ff` glow, electric pink accents, subtle scanlines, and fluid CSS transitions).
+- **🛡️ httpOnly Secure Cookie Hardening:** Access and refresh tokens are stored in `httpOnly`, `Secure`, `SameSite: Lax` cookies to eliminate XSS token theft vectors, with automatic Axios credential exchange and backwards-compatible authorization header fallback.
+
 ---
 
 ## 🧪 Testing & Quality Assurance
@@ -363,6 +372,7 @@ npm test
 ```
 PASS tests/enterpriseAdminSuite.test.js
 PASS tests/developerPlatform.test.js
+PASS tests/securityHealthAndCookies.test.js
 PASS tests/anomalyAndAudit.test.js
 PASS tests/admin.test.js
 PASS tests/auth.test.js
@@ -371,8 +381,8 @@ PASS tests/session.test.js
 PASS tests/protected.test.js
 PASS tests/oauth.test.js
 
-Test Suites: 9 passed, 9 total
-Tests:       64 passed, 64 total
+Test Suites: 10 passed, 10 total
+Tests:       71 passed, 71 total
 Snapshots:   0 total
 Status:      100% Passing (All Suites Green)
 ```

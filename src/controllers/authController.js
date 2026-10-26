@@ -10,6 +10,47 @@ const { logAuditEvent } = require('../services/auditService');
 const { detectAndHandleLoginAnomaly } = require('../services/anomalyService');
 const { dispatchWebhookEvent } = require('../services/webhookService');
 
+const isProduction = process.env.NODE_ENV === 'production';
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
+  path: '/'
+};
+
+const setAuthCookies = (res, accessToken, refreshToken, sessionId) => {
+  if (accessToken) {
+    res.cookie('accessToken', accessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000 // 15 mins
+    });
+  }
+  if (refreshToken) {
+    res.cookie('refreshToken', refreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+  }
+  if (sessionId) {
+    res.cookie('sessionId', sessionId.toString(), {
+      httpOnly: false,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/'
+    });
+  }
+};
+
+const clearAuthCookies = (res) => {
+  res.clearCookie('accessToken', { path: '/' });
+  res.clearCookie('refreshToken', { path: '/' });
+  res.clearCookie('sessionId', { path: '/' });
+};
+
+exports.setAuthCookies = setAuthCookies;
+exports.clearAuthCookies = clearAuthCookies;
+
 exports.signup = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -147,6 +188,9 @@ exports.verifyEmail = async (req, res) => {
       email: user.email,
       verifiedAt: new Date().toISOString()
     }, user._id).catch(() => {});
+
+    // 🛡️ Set httpOnly secure auth cookies
+    setAuthCookies(res, accessToken, refreshToken, session._id);
 
     res.json({
       msg: "Account verified successfully! Welcome to AuthX.",
@@ -371,6 +415,9 @@ exports.login = async (req, res) => {
       }
     });
 
+    // 🛡️ Set httpOnly secure auth cookies
+    setAuthCookies(res, accessToken, refreshToken, session._id);
+
     res.json({
       msg: "Login successful",
       accessToken,
@@ -487,7 +534,7 @@ exports.resetPassword = async (req, res) => {
 };
 
 exports.refreshTokenHandler = async (req, res) => {
-  const { refreshToken } = req.body;
+  const refreshToken = (req.cookies && req.cookies.refreshToken) || req.body?.refreshToken;
 
   if (!refreshToken) {
     return res.status(401).json({ msg: "No refresh token provided" });
@@ -537,6 +584,12 @@ exports.refreshTokenHandler = async (req, res) => {
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: '15m' }
     );
+
+    // 🛡️ Update accessToken in httpOnly secure cookie
+    res.cookie('accessToken', newAccessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000
+    });
 
     res.json({
       accessToken: newAccessToken
@@ -677,6 +730,9 @@ exports.login2FA = async (req, res) => {
         securityAlertEmailSent: anomalyResult.isSuspicious
       }
     });
+
+    // 🛡️ Set httpOnly secure auth cookies
+    setAuthCookies(res, accessToken, refreshToken, session._id);
 
     res.json({
       msg: "Login successful with 2FA",
@@ -919,4 +975,25 @@ exports.unlockAccount = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 🚪 SECURE LOGOUT (Clears httpOnly secure cookies & revokes session)
+exports.logout = async (req, res) => {
+  try {
+    const refreshToken = (req.cookies && req.cookies.refreshToken) || req.body?.refreshToken;
+    const sessionId = (req.cookies && req.cookies.sessionId) || req.body?.sessionId;
+
+    if (sessionId) {
+      await Session.findByIdAndUpdate(sessionId, { isRevoked: true });
+    } else if (refreshToken) {
+      await Session.findOneAndUpdate({ refreshToken }, { isRevoked: true });
+    }
+
+    clearAuthCookies(res);
+    res.json({ msg: "Logged out successfully" });
+  } catch (error) {
+    clearAuthCookies(res);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 

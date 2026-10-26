@@ -3,7 +3,8 @@ import axios from 'axios';
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
-  baseURL: API_URL
+  baseURL: API_URL,
+  withCredentials: true // 🛡️ Automatically exchange httpOnly secure cookies
 });
 
 api.interceptors.request.use(
@@ -40,12 +41,13 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error("No refresh token exists");
         
-        const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-        localStorage.setItem('accessToken', res.data.accessToken);
-        
-        originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
+        // Refresh token will be read from httpOnly cookie or fallback payload
+        const res = await axios.post(`${API_URL}/auth/refresh`, { refreshToken }, { withCredentials: true });
+        if (res.data?.accessToken) {
+          localStorage.setItem('accessToken', res.data.accessToken);
+          originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
+        }
         return api(originalRequest);
       } catch (err) {
         localStorage.removeItem('accessToken');
@@ -63,6 +65,9 @@ export const signup = (data) => api.post(`/auth/signup`, data);
 export const verifyEmail = (data) => api.post(`/auth/verify-email`, data);
 export const verifyOTP = (data) => api.post(`/auth/verify-otp`, data);
 export const login = (data) => api.post(`/auth/login`, data);
+export const logoutUser = () => api.post(`/auth/logout`);
+export const resetPassword = (token, password) => api.post(`/auth/reset-password/${token}`, { password });
+export const forgotPassword = (data) => api.post(`/auth/forgot-password`, data);
 export const getProtectedData = () => api.get(`/protected`);
 
 // Session endpoints

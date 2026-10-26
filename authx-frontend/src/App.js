@@ -11,6 +11,7 @@ import GoogleSuccess from './pages/GoogleSuccess';
 import LockAccount from './pages/LockAccount';
 import UnlockAccount from './pages/UnlockAccount';
 import VerifyEmail from './pages/VerifyEmail';
+import ResetPassword from './pages/ResetPassword';
 import Developer from './pages/Developer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
@@ -27,6 +28,7 @@ function App() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/google-success" element={<GoogleSuccess />} />
           <Route path="/lock-account" element={<LockAccount />} />
           <Route path="/unlock-account" element={<UnlockAccount />} />
