@@ -8,7 +8,8 @@ import {
   setup2FA,
   verify2FA,
   disable2FA,
-  regenerateBackupCodes
+  regenerateBackupCodes,
+  getMyAuditLogs
 } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -39,6 +40,11 @@ const Dashboard = () => {
   const [regenStep, setRegenStep] = useState(1); // 1 = confirm password, 2 = show new codes
   const [newBackupCodes, setNewBackupCodes] = useState([]);
 
+  // 📜 Security Audit Logs Timeline States
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [auditFilter, setAuditFilter] = useState('ALL');
+
   const navigate = useNavigate();
 
   const fetchSessions = async () => {
@@ -62,6 +68,25 @@ const Dashboard = () => {
     }
   };
 
+  const fetchAuditLogs = async (filter = auditFilter) => {
+    try {
+      setAuditLoading(true);
+      const actionParam = (filter === 'ALL' || filter === 'ALERT' || filter === '2FA') ? undefined : filter;
+      const res = await getMyAuditLogs({ action: actionParam });
+      let logs = res.data.logs || [];
+      if (filter === 'ALERT') {
+        logs = logs.filter(l => l.isSuspicious || l.status === 'ALERT');
+      } else if (filter === '2FA') {
+        logs = logs.filter(l => l.action.startsWith('2FA_'));
+      }
+      setAuditLogs(logs);
+    } catch (err) {
+      console.error("Failed to fetch audit trail:", err);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem('accessToken');
@@ -69,7 +94,7 @@ const Dashboard = () => {
         const res = await getProtectedData(token);
         setData(res.data.msg);
         setUser(res.data.user);
-        await Promise.all([fetchSessions(), fetch2FA()]);
+        await Promise.all([fetchSessions(), fetch2FA(), fetchAuditLogs()]);
       } catch (err) {
         setData(err.response?.data?.msg || "Session expired. Please log in again.");
         if (err.response?.status === 401 || err.response?.status === 403) {
@@ -98,6 +123,7 @@ const Dashboard = () => {
       window.removeEventListener('focus', handleFocus);
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   const handleLogout = () => {
@@ -227,6 +253,36 @@ const Dashboard = () => {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
+  };
+
+  const formatActionTitle = (action) => {
+    switch (action) {
+      case 'LOGIN_SUCCESS': return 'Successful Sign In';
+      case 'LOGIN_FAILED': return 'Failed Login Attempt';
+      case 'PASSWORD_RESET_REQUEST': return 'Password Reset Requested';
+      case 'PASSWORD_RESET_SUCCESS': return 'Password Reset Completed';
+      case '2FA_ENABLED': return 'Two-Factor Authentication Enabled';
+      case '2FA_DISABLED': return 'Two-Factor Authentication Disabled';
+      case 'FAILED_ATTEMPT_LOCKED': return 'Account Locked (Failed Attempts)';
+      case 'ACCOUNT_LOCKED': return 'Account Locked (Security Alert)';
+      case 'ACCOUNT_UNLOCKED': return 'Account Unlocked by Admin';
+      case 'ROLE_CHANGED': return 'User Role Updated';
+      case 'SESSION_REVOKED': return 'Device Session Terminated';
+      default: return action?.replace(/_/g, ' ') || 'Security Event';
+    }
+  };
+
+  const formatTimestamp = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const timeAgo = formatTimeAgo(dateStr);
+    const formatted = date.toLocaleDateString(undefined, { 
+      month: 'short', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    return `${timeAgo} • ${formatted}`;
   };
 
   const currentSessionId = localStorage.getItem('sessionId');
@@ -399,6 +455,133 @@ const Dashboard = () => {
                         Revoke Device
                       </button>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* 📜 INTERACTIVE TIMELINE: PERSONAL SECURITY HISTORY */}
+        <section className="timeline-section">
+          <div className="timeline-header-bar">
+            <h2>
+              <span>📜</span> Security History & Audit Trail
+              <span className="session-count-badge">
+                {auditLogs.length} {auditLogs.length === 1 ? 'Event' : 'Events'}
+              </span>
+            </h2>
+
+            <div className="filter-pills-row">
+              <button 
+                onClick={() => { setAuditFilter('ALL'); fetchAuditLogs('ALL'); }}
+                className={`filter-pill ${auditFilter === 'ALL' ? 'active' : ''}`}
+              >
+                All Events
+              </button>
+              <button 
+                onClick={() => { setAuditFilter('LOGIN_SUCCESS'); fetchAuditLogs('LOGIN_SUCCESS'); }}
+                className={`filter-pill ${auditFilter === 'LOGIN_SUCCESS' ? 'active' : ''}`}
+              >
+                🔑 Logins
+              </button>
+              <button 
+                onClick={() => { setAuditFilter('2FA'); fetchAuditLogs('2FA'); }}
+                className={`filter-pill ${auditFilter === '2FA' ? 'active' : ''}`}
+              >
+                🛡️ 2FA Activity
+              </button>
+              <button 
+                onClick={() => { setAuditFilter('ALERT'); fetchAuditLogs('ALERT'); }}
+                className={`filter-pill ${auditFilter === 'ALERT' ? 'active' : ''}`}
+              >
+                🚨 Security Alerts
+              </button>
+              <button 
+                onClick={() => fetchAuditLogs()}
+                className="filter-pill"
+                title="Refresh Audit Trail"
+                style={{ marginLeft: '6px' }}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+          </div>
+
+          {auditLoading ? (
+            <div className="card" style={{ textAlign: 'center', padding: '30px' }}>
+              <div className="spinner-small" style={{ borderLeftColor: 'var(--primary)', margin: '0 auto' }}></div>
+              <p style={{ marginTop: '10px', color: 'var(--text-muted)' }}>Retrieving immutable audit logs...</p>
+            </div>
+          ) : auditLogs.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '36px', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: '15px', marginBottom: '4px' }}>No security events recorded under this filter.</p>
+              <p style={{ fontSize: '13px' }}>Your security events will appear here in real-time.</p>
+            </div>
+          ) : (
+            <div className="timeline-track">
+              {auditLogs.map((log) => {
+                const isAlert = log.isSuspicious || log.status === 'ALERT';
+                const isWarning = log.status === 'WARNING';
+                const nodeClass = isAlert ? 'node-alert' : isWarning ? 'node-warning' : 'node-success';
+                const nodeIcon = isAlert ? '🚨' : isWarning ? '⚠️' : log.action.includes('LOGIN') ? '🔑' : '🛡️';
+
+                return (
+                  <div key={log._id} className="timeline-entry">
+                    <div className={`timeline-node ${nodeClass}`}>
+                      {nodeIcon}
+                    </div>
+
+                    <div className={`timeline-card ${isAlert ? 'is-suspicious' : ''}`}>
+                      <div className="timeline-top-row">
+                        <div className="timeline-action-title">
+                          <span>{formatActionTitle(log.action)}</span>
+                          <span className={`badge-status ${log.status.toLowerCase()}`}>
+                            {log.status}
+                          </span>
+                          {log.riskLevel && log.riskLevel !== 'LOW' && (
+                            <span className={`badge-risk ${log.riskLevel.toLowerCase()}`}>
+                              {log.riskLevel} RISK
+                            </span>
+                          )}
+                        </div>
+
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {formatTimestamp(log.createdAt)}
+                        </span>
+                      </div>
+
+                      <div className="timeline-meta-chips">
+                        <span className="chip">
+                          💻 {log.device || `${log.browser} on ${log.os}`}
+                        </span>
+                        <span className="chip">
+                          🌐 {log.ipAddress}
+                        </span>
+                        <span className="chip">
+                          📍 {log.location || 'Unknown Location'}
+                        </span>
+                      </div>
+
+                      {log.isSuspicious && (
+                        <div className="suspicious-anomaly-banner">
+                          <div className="suspicious-anomaly-title">
+                            <span>🚨</span> Suspicious Login Anomaly Detected
+                          </div>
+                          {log.metadata?.reasons && log.metadata.reasons.length > 0 ? (
+                            <ul className="suspicious-anomaly-list">
+                              {log.metadata.reasons.map((r, i) => (
+                                <li key={i}>{r}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p style={{ fontSize: '12px', color: '#b91c1c', margin: 0 }}>
+                              Unfamiliar device, IP, or location flagged by security intelligence.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}

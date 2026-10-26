@@ -1,4 +1,5 @@
 const Session = require('../models/Session');
+const { logAuditEvent } = require('../services/auditService');
 
 // Get all active sessions for the logged-in user
 exports.getUserSessions = async (req, res) => {
@@ -48,6 +49,20 @@ exports.revokeSession = async (req, res) => {
     session.isRevoked = true;
     await session.save();
 
+    // 🛡️ Log SESSION_REVOKED to Immutable Security Audit Trail
+    await logAuditEvent({
+      userId,
+      userEmail: req.user.email,
+      action: 'SESSION_REVOKED',
+      status: 'WARNING',
+      req,
+      metadata: {
+        revokedSessionId: session._id,
+        targetDevice: `${session.browser} on ${session.os}`,
+        targetIp: session.ipAddress
+      }
+    });
+
     res.json({ msg: "Device session revoked successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -64,7 +79,7 @@ exports.revokeOtherSessions = async (req, res) => {
       return res.status(400).json({ msg: "Current session ID is required" });
     }
 
-    await Session.updateMany(
+    const result = await Session.updateMany(
       {
         userId,
         _id: { $ne: currentSessionId },
@@ -74,6 +89,20 @@ exports.revokeOtherSessions = async (req, res) => {
         $set: { isRevoked: true }
       }
     );
+
+    // 🛡️ Log SESSION_REVOKED
+    await logAuditEvent({
+      userId,
+      userEmail: req.user.email,
+      action: 'SESSION_REVOKED',
+      status: 'WARNING',
+      req,
+      metadata: {
+        actionDetail: "Signed out of all other devices",
+        currentSessionId,
+        revokedCount: result.modifiedCount
+      }
+    });
 
     res.json({ msg: "Signed out of all other devices successfully" });
   } catch (error) {

@@ -7,14 +7,14 @@ const roleMiddleware = require('../middleware/roleMiddleware');
 const {
   getAllUsers,
   deleteUser,
-  changeRole
+  changeRole,
+  unlockUser
 } = require('../controllers/userController');
 
 // Admin only routes
 router.get('/', authMiddleware, roleMiddleware('admin'), getAllUsers);
-
 router.delete('/:id', authMiddleware, roleMiddleware('admin'), deleteUser);
-
 router.put('/:id/role', authMiddleware, roleMiddleware('admin'), changeRole);
+router.put('/:id/unlock', authMiddleware, roleMiddleware('admin'), unlockUser);
 
 module.exports = router;

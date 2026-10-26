@@ -8,6 +8,9 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
 import GoogleSuccess from './pages/GoogleSuccess';
+import LockAccount from './pages/LockAccount';
+import UnlockAccount from './pages/UnlockAccount';
+import VerifyEmail from './pages/VerifyEmail';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -18,9 +21,12 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route path="/login" element={<Login />} />
           <Route path="/google-success" element={<GoogleSuccess />} />
+          <Route path="/lock-account" element={<LockAccount />} />
+          <Route path="/unlock-account" element={<UnlockAccount />} />
           <Route 
             path="/dashboard" 
             element={

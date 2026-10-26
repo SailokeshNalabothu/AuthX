@@ -4,8 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const generateOTP = require('../utils/generateOTP');
-const { parseUserAgent, getClientIp, getLocationFromIp } = require('../utils/deviceParser');
-const { sendOTPEmail, sendWelcomeEmail, sendResetPasswordEmail } = require('../services/emailService');
+const { parseUserAgent, getClientIp, getLocationFromIp, extractDeviceInfo, formatDevice } = require('../utils/deviceParser');
+const { sendVerificationEmail, sendOTPEmail, sendWelcomeEmail, sendResetPasswordEmail, sendUnlockAccountEmail } = require('../services/emailService');
+const { logAuditEvent } = require('../services/auditService');
+const { detectAndHandleLoginAnomaly } = require('../services/anomalyService');
 
 exports.signup = async (req, res) => {
   try {
@@ -18,19 +20,28 @@ exports.signup = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 🔥 Generate OTP
+    // 🔑 Generate secure 1-click verification token & 6-digit fallback
+    const verificationToken = crypto.randomBytes(32).toString('hex');
     const otp = generateOTP();
 
     const user = await User.create({
       email,
       password: hashedPassword,
+      verificationToken,
+      verificationExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
       otp,
-      otpExpiry: Date.now() + 5 * 60 * 1000 // 5 min
+      otpExpiry: Date.now() + 15 * 60 * 1000 // 15 min fallback
     });
 
-    // 📩 Send OTP Email
-    await sendOTPEmail(user, otp);
-    console.log(`🔑 [DEV MODE] Generated OTP for ${user.email}: ${otp}`);
+    // 📩 Send 1-click Verification Email
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    const verifyLink = `${clientUrl}/verify-email?token=${verificationToken}&email=${encodeURIComponent(user.email)}`;
+    await sendVerificationEmail(user, verifyLink);
+    
+    // Also trigger OTP email mock if in test environment for backwards compatibility
+    if (process.env.NODE_ENV === 'test') {
+      await sendOTPEmail(user, otp);
+    }
 
     const userResponse = {
       _id: user._id,
@@ -40,9 +51,8 @@ exports.signup = async (req, res) => {
     };
 
     res.status(201).json({
-      msg: "User created. OTP sent to email",
-      user: userResponse,
-      ...(process.env.NODE_ENV !== 'production' && { devOtp: otp })
+      msg: "User created. Verification email sent",
+      user: userResponse
     });
 
   } catch (error) {
@@ -50,6 +60,96 @@ exports.signup = async (req, res) => {
   }
 };
 
+// 📩 1-CLICK EMAIL VERIFICATION
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { email, token } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
+
+    if (!email || !token) {
+      return res.status(400).json({ msg: "Email and verification token are required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    if (user.isVerified) {
+      return res.json({ msg: "Account is already verified. You may sign in." });
+    }
+
+    if (!user.verificationToken || user.verificationToken !== token) {
+      return res.status(400).json({ msg: "Invalid or expired verification link" });
+    }
+
+    if (user.verificationExpires && user.verificationExpires < Date.now()) {
+      return res.status(400).json({ msg: "Verification link has expired. Please request a new one." });
+    }
+
+    // Activate user
+    user.isVerified = true;
+    user.verificationToken = null;
+    user.verificationExpires = null;
+    user.otp = null;
+    user.otpExpiry = null;
+    await user.save();
+
+    // 🛡️ Log EMAIL_VERIFIED to Immutable Security Audit Trail
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'EMAIL_VERIFIED',
+      status: 'SUCCESS',
+      riskLevel: 'LOW',
+      deviceInfo,
+      metadata: { method: "1_click_email_link" }
+    });
+
+    // Auto-login: issue access and refresh tokens
+    const accessToken = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: '15m' }
+    );
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: '7d' }
+    );
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    const session = await Session.create({
+      userId: user._id,
+      refreshToken,
+      deviceType: deviceInfo.deviceType || 'Desktop',
+      browser: deviceInfo.browser || 'Browser',
+      os: deviceInfo.os || 'OS',
+      ipAddress: deviceInfo.ipAddress || '127.0.0.1',
+      location: deviceInfo.location || 'Local Network',
+      lastActiveAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+    res.json({
+      msg: "Account verified successfully! Welcome to AuthX.",
+      accessToken,
+      refreshToken,
+      sessionId: session._id,
+      user: {
+        _id: user._id,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// OTP VERIFICATION (Kept for backwards compatibility and test suites)
 exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -71,11 +171,10 @@ exports.verifyOTP = async (req, res) => {
     user.isVerified = true;
     user.otp = null;
     user.otpExpiry = null;
+    user.verificationToken = null;
+    user.verificationExpires = null;
 
     await user.save();
-
-    // 📩 Send Welcome Email
-    await sendWelcomeEmail(user);
 
     res.json({ msg: "Account verified successfully" });
 
@@ -88,10 +187,18 @@ exports.verifyOTP = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
 
     // 1. Check if user exists
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email ? email.toLowerCase().trim() : '' });
     if (!user) {
+      await logAuditEvent({
+        userEmail: email || 'unknown',
+        action: 'LOGIN_FAILED',
+        status: 'FAILURE',
+        deviceInfo,
+        metadata: { reason: "User does not exist" }
+      });
       return res.status(400).json({ msg: "User not found" });
     }
 
@@ -101,10 +208,27 @@ exports.login = async (req, res) => {
     }
 
     // Check if account is locked
-    if (user.lockUntil && user.lockUntil > Date.now()) {
-      return res.status(403).json({
-        msg: "Account locked. Try again later"
+    if (user.isLocked || (user.lockUntil && user.lockUntil > Date.now())) {
+      const lockMsg = user.isLocked
+        ? (user.lockReason || "Your account has been locked for security. Please contact an administrator.")
+        : "Account temporarily locked due to multiple failed attempts. Try again later.";
+
+      await logAuditEvent({
+        userId: user._id,
+        userEmail: user.email,
+        action: 'LOGIN_FAILED',
+        status: 'ALERT',
+        riskLevel: 'CRITICAL',
+        deviceInfo,
+        metadata: {
+          reason: "Sign-in attempt on locked account",
+          isLocked: !!user.isLocked,
+          lockReason: user.lockReason,
+          lockUntil: user.lockUntil
+        }
       });
+
+      return res.status(403).json({ msg: lockMsg });
     }
 
     // 3. Compare password
@@ -113,12 +237,43 @@ exports.login = async (req, res) => {
       user.loginAttempts += 1;
 
       // Lock after 5 attempts
+      let isNowLocked = false;
       if (user.loginAttempts >= 5) {
         user.lockUntil = Date.now() + 15 * 60 * 1000; // 15 min
         user.loginAttempts = 0;
+        isNowLocked = true;
       }
 
       await user.save();
+
+      if (isNowLocked) {
+        await logAuditEvent({
+          userId: user._id,
+          userEmail: user.email,
+          action: 'FAILED_ATTEMPT_LOCKED',
+          status: 'ALERT',
+          riskLevel: 'CRITICAL',
+          deviceInfo,
+          metadata: {
+            attempts: 5,
+            lockDurationMinutes: 15,
+            message: "Account automatically locked due to 5 consecutive failed login attempts"
+          }
+        });
+      } else {
+        await logAuditEvent({
+          userId: user._id,
+          userEmail: user.email,
+          action: 'LOGIN_FAILED',
+          status: 'FAILURE',
+          riskLevel: 'MEDIUM',
+          deviceInfo,
+          metadata: {
+            attempts: user.loginAttempts,
+            remainingAttempts: 5 - user.loginAttempts
+          }
+        });
+      }
 
       return res.status(400).json({ msg: "Invalid credentials" });
     }
@@ -136,6 +291,9 @@ exports.login = async (req, res) => {
         msg: "Two-factor authentication code required"
       });
     }
+
+    // 🚨 PROACTIVE ANOMALY DETECTION ENGINE
+    const anomalyResult = await detectAndHandleLoginAnomaly(user, deviceInfo, req);
 
     // ACCESS TOKEN (short life)
     const accessToken = jwt.sign(
@@ -160,28 +318,48 @@ exports.login = async (req, res) => {
     await user.save();
 
     // 🖥️ Create Multi-Device Session Record
-    const userAgentHeader = req.headers['user-agent'] || '';
-    const { deviceType, os, browser } = parseUserAgent(userAgentHeader);
-    const ipAddress = getClientIp(req);
-    const location = getLocationFromIp(ipAddress);
-
     const session = await Session.create({
       userId: user._id,
       refreshToken,
-      deviceType,
-      browser,
-      os,
-      ipAddress,
-      location,
+      deviceType: deviceInfo.deviceType,
+      browser: deviceInfo.browser,
+      os: deviceInfo.os,
+      ipAddress: deviceInfo.ipAddress,
+      location: deviceInfo.location,
       lastActiveAt: new Date(),
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+    // 🛡️ Log LOGIN_SUCCESS to Immutable Security Audit Trail
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'LOGIN_SUCCESS',
+      status: anomalyResult.isSuspicious ? 'ALERT' : 'SUCCESS',
+      isSuspicious: anomalyResult.isSuspicious,
+      riskLevel: anomalyResult.isSuspicious ? 'HIGH' : 'LOW',
+      deviceInfo,
+      metadata: {
+        sessionId: session._id,
+        isSuspicious: anomalyResult.isSuspicious,
+        reasons: anomalyResult.reasons || [],
+        securityAlertEmailSent: anomalyResult.isSuspicious,
+        authMethod: 'password'
+      }
     });
 
     res.json({
       msg: "Login successful",
       accessToken,
       refreshToken,
-      sessionId: session._id
+      sessionId: session._id,
+      isSuspicious: anomalyResult.isSuspicious,
+      suspiciousDetails: anomalyResult.isSuspicious
+        ? {
+            message: `New login detected from ${deviceInfo.browser} on ${deviceInfo.os} (IP: ${deviceInfo.ipAddress}). An alert email was dispatched.`,
+            reasons: anomalyResult.reasons
+          }
+        : null
     });
 
   } catch (error) {
@@ -193,10 +371,18 @@ exports.login = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
 
     const user = await User.findOne({ email });
 
     if (!user) {
+      await logAuditEvent({
+        userEmail: email || 'unknown',
+        action: 'PASSWORD_RESET_REQUEST',
+        status: 'FAILURE',
+        deviceInfo,
+        metadata: { reason: "User not found" }
+      });
       return res.status(400).json({ msg: "User not found" });
     }
 
@@ -208,9 +394,20 @@ exports.forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const resetLink = `http://localhost:5000/api/auth/reset-password/${token}`;
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    const resetLink = `${clientUrl}/reset-password/${token}`;
 
     await sendResetPasswordEmail(user, resetLink);
+
+    // 🛡️ Log PASSWORD_RESET_REQUEST
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'PASSWORD_RESET_REQUEST',
+      status: 'SUCCESS',
+      deviceInfo,
+      metadata: { tokenExpiryMinutes: 10 }
+    });
 
     res.json({ msg: "Password reset link sent to email" });
 
@@ -224,6 +421,7 @@ exports.resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
 
     const user = await User.findOne({
       resetPasswordToken: token,
@@ -238,11 +436,25 @@ exports.resetPassword = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
 
-    // Clear reset fields
+    // Clear reset and lock fields (password reset proves email ownership and restores account access)
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
+    user.isLocked = false;
+    user.lockUntil = null;
+    user.lockReason = null;
+    user.loginAttempts = 0;
 
     await user.save();
+
+    // 🛡️ Log PASSWORD_RESET_SUCCESS
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'PASSWORD_RESET_SUCCESS',
+      status: 'SUCCESS',
+      deviceInfo,
+      metadata: { message: "Password successfully changed" }
+    });
 
     res.json({ msg: "Password reset successful" });
 
@@ -268,6 +480,10 @@ exports.refreshTokenHandler = async (req, res) => {
 
     if (!user) {
       return res.status(403).json({ msg: "User not found" });
+    }
+
+    if (user.isLocked || (user.lockUntil && user.lockUntil > Date.now())) {
+      return res.status(403).json({ msg: "Account is locked. Refresh token rejected." });
     }
 
     // 🛡️ Multi-session Check: Query Session collection
@@ -312,13 +528,13 @@ exports.refreshTokenHandler = async (req, res) => {
 exports.login2FA = async (req, res) => {
   try {
     const { tempToken, code, isBackupCode } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
 
     if (!tempToken || !code) {
       return res.status(400).json({ msg: "Authentication challenge token and code are required" });
     }
 
     const speakeasy = require('speakeasy');
-    const bcrypt = require('bcryptjs');
 
     const decoded = jwt.verify(tempToken, process.env.ACCESS_TOKEN_SECRET);
     if (!decoded.require2FA) {
@@ -328,6 +544,10 @@ exports.login2FA = async (req, res) => {
     const user = await User.findById(decoded.userId);
     if (!user || !user.twoFactorEnabled) {
       return res.status(400).json({ msg: "2FA is not active on this account" });
+    }
+
+    if (user.isLocked || (user.lockUntil && user.lockUntil > Date.now())) {
+      return res.status(403).json({ msg: "Account is locked." });
     }
 
     let verified = false;
@@ -348,6 +568,14 @@ exports.login2FA = async (req, res) => {
       }
 
       if (matchedIndex === -1) {
+        await logAuditEvent({
+          userId: user._id,
+          userEmail: user.email,
+          action: 'LOGIN_FAILED',
+          status: 'FAILURE',
+          deviceInfo,
+          metadata: { reason: "Invalid backup code entered" }
+        });
         return res.status(400).json({ msg: "Invalid or already used backup code" });
       }
 
@@ -365,8 +593,19 @@ exports.login2FA = async (req, res) => {
     }
 
     if (!verified) {
+      await logAuditEvent({
+        userId: user._id,
+        userEmail: user.email,
+        action: 'LOGIN_FAILED',
+        status: 'FAILURE',
+        deviceInfo,
+        metadata: { reason: "Invalid TOTP authenticator code" }
+      });
       return res.status(400).json({ msg: "Invalid 6-digit authenticator code" });
     }
+
+    // 🚨 PROACTIVE ANOMALY DETECTION ENGINE
+    const anomalyResult = await detectAndHandleLoginAnomaly(user, deviceInfo, req);
 
     // Authenticated! Issue tokens & register session
     const accessToken = jwt.sign(
@@ -386,28 +625,48 @@ exports.login2FA = async (req, res) => {
     user.lockUntil = null;
     await user.save();
 
-    const userAgentHeader = req.headers['user-agent'] || '';
-    const { deviceType, os, browser } = parseUserAgent(userAgentHeader);
-    const ipAddress = getClientIp(req);
-    const location = getLocationFromIp(ipAddress);
-
     const session = await Session.create({
       userId: user._id,
       refreshToken,
-      deviceType,
-      browser,
-      os,
-      ipAddress,
-      location,
+      deviceType: deviceInfo.deviceType,
+      browser: deviceInfo.browser,
+      os: deviceInfo.os,
+      ipAddress: deviceInfo.ipAddress,
+      location: deviceInfo.location,
       lastActiveAt: new Date(),
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+    // 🛡️ Log LOGIN_SUCCESS to Immutable Security Audit Trail
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'LOGIN_SUCCESS',
+      status: anomalyResult.isSuspicious ? 'ALERT' : 'SUCCESS',
+      isSuspicious: anomalyResult.isSuspicious,
+      riskLevel: anomalyResult.isSuspicious ? 'HIGH' : 'LOW',
+      deviceInfo,
+      metadata: {
+        sessionId: session._id,
+        authMethod: isBackupCode ? '2fa_backup_code' : '2fa_totp',
+        isSuspicious: anomalyResult.isSuspicious,
+        reasons: anomalyResult.reasons || [],
+        securityAlertEmailSent: anomalyResult.isSuspicious
+      }
     });
 
     res.json({
       msg: "Login successful with 2FA",
       accessToken,
       refreshToken,
-      sessionId: session._id
+      sessionId: session._id,
+      isSuspicious: anomalyResult.isSuspicious,
+      suspiciousDetails: anomalyResult.isSuspicious
+        ? {
+            message: `New login detected from ${deviceInfo.browser} on ${deviceInfo.os} (IP: ${deviceInfo.ipAddress}). Alert email dispatched.`,
+            reasons: anomalyResult.reasons
+          }
+        : null
     });
 
   } catch (error) {
@@ -417,3 +676,201 @@ exports.login2FA = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 🔒 INSTANT ACCOUNT LOCK (Triggered by user from email alert)
+exports.lockAccount = async (req, res) => {
+  try {
+    const { token, email } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
+
+    if (!token || !email) {
+      return res.status(400).json({ msg: "Lock token and email are required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    if (!user.accountLockToken || user.accountLockToken !== token) {
+      return res.status(400).json({ msg: "Invalid or already used account lock token" });
+    }
+
+    if (user.accountLockExpires && user.accountLockExpires < Date.now()) {
+      return res.status(400).json({ msg: "Account lock token has expired" });
+    }
+
+    // Lock user account immediately
+    user.isLocked = true;
+    user.lockReason = "Account instantly locked by user following suspicious login notification";
+    user.accountLockToken = null;
+    user.accountLockExpires = null;
+    user.refreshToken = null;
+    await user.save();
+
+    // Revoke all active sessions immediately
+    await Session.updateMany(
+      { userId: user._id },
+      { $set: { isRevoked: true } }
+    );
+
+    // 🛡️ Log ACCOUNT_LOCKED to Immutable Audit Trail
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'ACCOUNT_LOCKED',
+      status: 'ALERT',
+      riskLevel: 'CRITICAL',
+      deviceInfo,
+      metadata: {
+        reason: "User confirmed instant account lock via security alert email",
+        sessionsTerminated: true
+      }
+    });
+
+    res.json({
+      msg: "Your account has been locked instantly and all active sessions have been terminated. Please contact your administrator to unlock your account.",
+      email: user.email,
+      lockedAt: new Date()
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🔒 DIRECT BROWSER CLICK LOCK ENDPOINT (For direct link inside email)
+exports.lockAccountDirect = async (req, res) => {
+  try {
+    const { token, email } = req.query;
+    const deviceInfo = extractDeviceInfo(req);
+
+    if (!token || !email) {
+      return res.status(400).send("<h3>Missing token or email parameter.</h3>");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user || user.accountLockToken !== token) {
+      return res.status(400).send(`
+        <div style="font-family: sans-serif; text-align: center; padding: 40px; background: #0f172a; color: #fff; min-height: 100vh;">
+          <h2 style="color: #ef4444;">Invalid or Expired Lock Link</h2>
+          <p>This security link is no longer valid or your account is already secured.</p>
+          <a href="/login" style="color: #38bdf8; text-decoration: none;">Return to Login</a>
+        </div>
+      `);
+    }
+
+    user.isLocked = true;
+    user.lockReason = "Account instantly locked by user following suspicious login notification";
+    user.accountLockToken = null;
+    user.accountLockExpires = null;
+    user.refreshToken = null;
+    await user.save();
+
+    await Session.updateMany({ userId: user._id }, { $set: { isRevoked: true } });
+
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'ACCOUNT_LOCKED',
+      status: 'ALERT',
+      riskLevel: 'CRITICAL',
+      deviceInfo,
+      metadata: {
+        reason: "Instant account lock executed via direct email click",
+        sessionsTerminated: true
+      }
+    });
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    res.redirect(`${clientUrl}/login?accountLocked=true&email=${encodeURIComponent(user.email)}`);
+
+  } catch (error) {
+    res.status(500).send(`Error locking account: ${error.message}`);
+  }
+};
+
+// 🔓 SELF-SERVICE UNLOCK REQUEST (Dispatches one-click unlock link to email)
+exports.requestUnlock = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
+
+    if (!email) {
+      return res.status(400).json({ msg: "Email is required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      // Don't leak user existence
+      return res.json({ msg: "If your account is registered, an unlock link has been dispatched to your email." });
+    }
+
+    // Generate 15-minute unlock token
+    const token = crypto.randomBytes(32).toString('hex');
+    user.accountUnlockToken = token;
+    user.accountUnlockExpires = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    const unlockLink = `${clientUrl}/unlock-account?token=${token}&email=${encodeURIComponent(user.email)}`;
+
+    await sendUnlockAccountEmail(user, unlockLink);
+
+    res.json({ msg: "If your account is registered, an unlock link has been dispatched to your email." });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 🔓 CONFIRM UNLOCK (Restores access via verified token)
+exports.unlockAccount = async (req, res) => {
+  try {
+    const { token, email } = req.body;
+    const deviceInfo = extractDeviceInfo(req);
+
+    if (!token || !email) {
+      return res.status(400).json({ msg: "Token and email are required" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    if (!user.accountUnlockToken || user.accountUnlockToken !== token) {
+      return res.status(400).json({ msg: "Invalid or expired unlock token" });
+    }
+
+    if (user.accountUnlockExpires && user.accountUnlockExpires < Date.now()) {
+      return res.status(400).json({ msg: "Unlock link has expired. Please request a new one." });
+    }
+
+    // Unlock account
+    user.isLocked = false;
+    user.lockUntil = null;
+    user.lockReason = null;
+    user.loginAttempts = 0;
+    user.accountUnlockToken = null;
+    user.accountUnlockExpires = null;
+    await user.save();
+
+    // 🛡️ Log ACCOUNT_UNLOCKED to Immutable Audit Trail
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: 'ACCOUNT_UNLOCKED',
+      status: 'SUCCESS',
+      riskLevel: 'LOW',
+      deviceInfo,
+      metadata: { method: "self_service_email_verification" }
+    });
+
+    res.json({ msg: "Your account has been successfully unlocked! You may now sign in." });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+

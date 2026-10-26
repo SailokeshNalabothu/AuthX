@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { login, login2FA } from '../services/api';
+import { login, login2FA, requestUnlock } from '../services/api';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
@@ -7,6 +7,8 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [unlockLoading, setUnlockLoading] = useState(false);
+  const [isLockedError, setIsLockedError] = useState(false);
 
   // 2FA Challenge States
   const [twoFactorRequired, setTwoFactorRequired] = useState(false);
@@ -23,6 +25,14 @@ const Login = () => {
     if (params.get('revoked') === 'true') {
       toast.warn("Your session was terminated from another device.");
     }
+    if (params.get('locked') === 'true' || params.get('accountLocked') === 'true') {
+      setIsLockedError(true);
+      toast.error("🔒 Account locked for security. All active sessions have been terminated.");
+    }
+    const emailParam = params.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+    }
   }, [location]);
 
   const handleGoogleLogin = () => {
@@ -30,9 +40,26 @@ const Login = () => {
     window.location.href = `${backendBase}/api/auth/google`;
   };
 
+  const handleRequestUnlock = async () => {
+    if (!email) {
+      toast.info("Please enter your email address to receive an unlock link.");
+      return;
+    }
+    try {
+      setUnlockLoading(true);
+      const res = await requestUnlock({ email });
+      toast.success(res.data.msg || "Unlock link dispatched! Check your email.");
+    } catch (err) {
+      toast.error(err.response?.data?.msg || "Failed to dispatch unlock link.");
+    } finally {
+      setUnlockLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setIsLockedError(false);
     try {
       const res = await login({ email, password });
 
@@ -52,7 +79,11 @@ const Login = () => {
       toast.success("Welcome back!");
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.msg || "Invalid credentials");
+      const msg = err.response?.data?.msg || "Invalid credentials";
+      if (msg.toLowerCase().includes('locked')) {
+        setIsLockedError(true);
+      }
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -92,6 +123,41 @@ const Login = () => {
             
             {successMsg && <div className="success-banner">{successMsg}</div>}
             
+            {isLockedError && (
+              <div style={{
+                background: '#fef2f2',
+                border: '1px solid #fee2e2',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+                textAlign: 'left'
+              }}>
+                <p style={{ color: '#991b1b', fontSize: '13px', fontWeight: '700', margin: '0 0 6px 0' }}>
+                  🔒 Account Locked for Security
+                </p>
+                <p style={{ color: '#b91c1c', fontSize: '12px', margin: '0 0 10px 0', lineHeight: '1.4' }}>
+                  This account was locked following a security notification or failed attempts.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRequestUnlock}
+                  disabled={unlockLoading}
+                  style={{
+                    background: '#10b981',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {unlockLoading ? 'Dispatching...' : '🔓 Send Unlock Link to Email'}
+                </button>
+              </div>
+            )}
+
             <button type="button" onClick={handleGoogleLogin} className="btn-google">
               <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" width="20" height="20" />
               Continue with Google
@@ -112,7 +178,16 @@ const Login = () => {
               </div>
               
               <div className="input-group">
-                <label>Password</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>Password</label>
+                  <button
+                    type="button"
+                    onClick={handleRequestUnlock}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                  >
+                    Account Locked?
+                  </button>
+                </div>
                 <input 
                   type="password" 
                   placeholder="Enter your password" 

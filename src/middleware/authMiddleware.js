@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const Session = require('../models/Session');
+const User = require('../models/User');
 
 const authMiddleware = async (req, res, next) => {
   try {
@@ -28,6 +29,17 @@ const authMiddleware = async (req, res, next) => {
     }
 
     req.user = decoded;
+
+    // 🛡️ Account Lock Check:
+    if (decoded.userId) {
+      const user = await User.findById(decoded.userId).select('email isLocked lockUntil');
+      if (user) {
+        if (user.isLocked || (user.lockUntil && user.lockUntil > Date.now())) {
+          return res.status(403).json({ msg: "Account is locked. Please contact support or an administrator." });
+        }
+        req.user.email = user.email;
+      }
+    }
 
     next();
 

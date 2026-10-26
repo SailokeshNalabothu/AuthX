@@ -3,6 +3,7 @@ const qrcode = require('qrcode');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const { logAuditEvent } = require('../services/auditService');
 
 // 1. Get 2FA Status
 exports.get2FAStatus = async (req, res) => {
@@ -103,6 +104,17 @@ exports.verifyAndEnable2FA = async (req, res) => {
 
     await user.save();
 
+    // 🛡️ Log 2FA_ENABLED to Immutable Security Audit Trail
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: '2FA_ENABLED',
+      status: 'SUCCESS',
+      riskLevel: 'LOW',
+      req,
+      metadata: { method: 'authenticator_app_totp', backupCodesCount: 8 }
+    });
+
     res.json({
       msg: "2FA successfully enabled!",
       backupCodes: rawBackupCodes
@@ -135,6 +147,17 @@ exports.disable2FA = async (req, res) => {
     user.twoFactorTempSecret = null;
     user.twoFactorBackupCodes = [];
     await user.save();
+
+    // 🛡️ Log 2FA_DISABLED to Immutable Security Audit Trail
+    await logAuditEvent({
+      userId: user._id,
+      userEmail: user.email,
+      action: '2FA_DISABLED',
+      status: 'WARNING',
+      riskLevel: 'MEDIUM',
+      req,
+      metadata: { reason: "User requested 2FA deactivation" }
+    });
 
     res.json({ msg: "Two-Factor Authentication disabled successfully" });
   } catch (error) {

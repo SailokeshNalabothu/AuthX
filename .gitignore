@@ -37,3 +37,7 @@ ehthumbs.db
 .idea/
 *.sublime-project
 *.sublime-workspace
+
+# Sensitive Local Exports
+Backup Codes.txt
+*.backup.txt

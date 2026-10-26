@@ -4,12 +4,13 @@ const mongoose = require('mongoose');
 const User = require('../src/models/User');
 
 jest.mock('../src/services/emailService', () => ({
+  sendVerificationEmail: jest.fn().mockResolvedValue(true),
   sendOTPEmail: jest.fn().mockResolvedValue(true),
   sendResetPasswordEmail: jest.fn().mockResolvedValue(true),
   sendWelcomeEmail: jest.fn().mockResolvedValue(true),
 }));
 
-describe('Auth & OTP Endpoints', () => {
+describe('Auth & Verification Endpoints', () => {
   let testUser = {
     email: 'test@example.com',
     password: 'password123'
@@ -21,13 +22,13 @@ describe('Auth & OTP Endpoints', () => {
   });
 
   describe('POST /api/auth/signup', () => {
-    it('should create a new user and send an OTP', async () => {
+    it('should create a new user and send a verification email', async () => {
       const res = await request(app)
         .post('/api/auth/signup')
         .send(testUser);
         
       expect(res.statusCode).toBe(201);
-      expect(res.body.msg).toBe("User created. OTP sent to email");
+      expect(res.body.msg).toBe("User created. Verification email sent");
       expect(res.body.user.email).toBe(testUser.email);
     });
 
@@ -73,6 +74,25 @@ describe('Auth & OTP Endpoints', () => {
         
       expect(res.statusCode).toBe(200);
       expect(res.body.msg).toBe("Account verified successfully");
+    });
+  });
+
+  describe('POST /api/auth/verify-email (1-Click)', () => {
+    it('should verify email and auto-login with valid token', async () => {
+      const emailUser = { email: 'clickverify@example.com', password: 'password123' };
+      await request(app).post('/api/auth/signup').send(emailUser);
+      const user = await User.findOne({ email: emailUser.email });
+
+      const res = await request(app)
+        .post('/api/auth/verify-email')
+        .send({ email: emailUser.email, token: user.verificationToken });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.accessToken).toBeDefined();
+      expect(res.body.refreshToken).toBeDefined();
+
+      const verifiedUser = await User.findOne({ email: emailUser.email });
+      expect(verifiedUser.isVerified).toBe(true);
     });
   });
 

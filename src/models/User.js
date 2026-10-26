@@ -28,7 +28,9 @@ const userSchema = new mongoose.Schema(
       default: 'user'
     },
 
-    // OTP SYSTEM
+    // EMAIL VERIFICATION (1-Click Link & OTP fallback)
+    verificationToken: String,
+    verificationExpires: Date,
     otp: String,
     otpExpiry: Date,
 
@@ -51,6 +53,30 @@ const userSchema = new mongoose.Schema(
     },
     lockUntil: {
       type: Date
+    },
+    isLocked: {
+      type: Boolean,
+      default: false
+    },
+    lockReason: {
+      type: String,
+      default: null
+    },
+    accountLockToken: {
+      type: String,
+      default: null
+    },
+    accountLockExpires: {
+      type: Date,
+      default: null
+    },
+    accountUnlockToken: {
+      type: String,
+      default: null
+    },
+    accountUnlockExpires: {
+      type: Date,
+      default: null
     },
 
     // TWO-FACTOR AUTHENTICATION (TOTP)

@@ -26,12 +26,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // If the session was explicitly revoked from another device, flush & redirect immediately
-    if (error.response?.data?.msg === "Session has been revoked") {
+    // If the session was explicitly revoked from another device or account locked, flush & redirect
+    if (error.response?.data?.msg === "Session has been revoked" || error.response?.data?.msg?.includes("locked")) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('sessionId');
-      window.location.href = '/login?revoked=true';
+      const reason = error.response?.data?.msg?.includes("locked") ? 'locked=true' : 'revoked=true';
+      window.location.href = `/login?${reason}`;
       return Promise.reject(error);
     }
 
@@ -59,6 +60,7 @@ api.interceptors.response.use(
 );
 
 export const signup = (data) => api.post(`/auth/signup`, data);
+export const verifyEmail = (data) => api.post(`/auth/verify-email`, data);
 export const verifyOTP = (data) => api.post(`/auth/verify-otp`, data);
 export const login = (data) => api.post(`/auth/login`, data);
 export const getProtectedData = () => api.get(`/protected`);
@@ -76,9 +78,20 @@ export const verify2FA = (code) => api.post(`/2fa/verify`, { code });
 export const disable2FA = (password) => api.post(`/2fa/disable`, { password });
 export const regenerateBackupCodes = (password) => api.post(`/2fa/regenerate-backup-codes`, { password });
 
-// Admin endpoints
+// 🔒 Instant Account Lock & Self-Service Unlock
+export const lockAccount = (data) => api.post(`/auth/lock-account`, data);
+export const requestUnlock = (data) => api.post(`/auth/request-unlock`, data);
+export const unlockAccount = (data) => api.post(`/auth/unlock-account`, data);
+
+// 🛡️ Security Audit Logs
+export const getMyAuditLogs = (params) => api.get(`/audit/my-logs`, { params });
+export const getAdminAuditFeed = (params) => api.get(`/audit/admin-feed`, { params });
+export const exportAuditLogsCsv = (params) => api.get(`/audit/export-csv`, { params, responseType: 'blob' });
+
+// Admin user management
 export const getAllUsers = () => api.get(`/users`);
 export const deleteUser = (id) => api.delete(`/users/${id}`);
 export const changeRole = (id, role) => api.put(`/users/${id}/role`, { role });
+export const unlockUser = (id) => api.put(`/users/${id}/unlock`);
 
 export default api;
