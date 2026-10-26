@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { logAuditEvent } = require('../services/auditService');
+const { dispatchWebhookEvent } = require('../services/webhookService');
 
 // GET ALL USERS
 exports.getAllUsers = async (req, res) => {
@@ -20,6 +21,13 @@ exports.deleteUser = async (req, res) => {
     }
 
     await User.findByIdAndDelete(req.params.id);
+
+    // 🔗 Dispatch Outbound Webhook Event (user.deleted)
+    dispatchWebhookEvent('user.deleted', {
+      userId: user._id,
+      email: user.email,
+      deletedAt: new Date().toISOString()
+    }, user._id).catch(() => {});
 
     await logAuditEvent({
       userId: user._id,
@@ -106,6 +114,13 @@ exports.unlockUser = async (req, res) => {
         unlockedBy: req.user?.email || 'admin'
       }
     });
+
+    // 🔗 Dispatch Outbound Webhook Event (user.unlocked)
+    dispatchWebhookEvent('user.unlocked', {
+      userId: user._id,
+      email: user.email,
+      unlockedAt: new Date().toISOString()
+    }, user._id).catch(() => {});
 
     res.json({ msg: `Account successfully unlocked for ${user.email}` });
 

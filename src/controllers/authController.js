@@ -8,6 +8,7 @@ const { parseUserAgent, getClientIp, getLocationFromIp, extractDeviceInfo, forma
 const { sendVerificationEmail, sendOTPEmail, sendWelcomeEmail, sendResetPasswordEmail, sendUnlockAccountEmail } = require('../services/emailService');
 const { logAuditEvent } = require('../services/auditService');
 const { detectAndHandleLoginAnomaly } = require('../services/anomalyService');
+const { dispatchWebhookEvent } = require('../services/webhookService');
 
 exports.signup = async (req, res) => {
   try {
@@ -49,6 +50,14 @@ exports.signup = async (req, res) => {
       role: user.role,
       isVerified: user.isVerified
     };
+
+    // 🔗 Dispatch Outbound Webhook Event (user.signup)
+    dispatchWebhookEvent('user.signup', {
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt
+    }, user._id).catch(() => {});
 
     res.status(201).json({
       msg: "User created. Verification email sent",
@@ -132,6 +141,13 @@ exports.verifyEmail = async (req, res) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     });
 
+    // 🔗 Dispatch Outbound Webhook Event (user.verified)
+    dispatchWebhookEvent('user.verified', {
+      userId: user._id,
+      email: user.email,
+      verifiedAt: new Date().toISOString()
+    }, user._id).catch(() => {});
+
     res.json({
       msg: "Account verified successfully! Welcome to AuthX.",
       accessToken,
@@ -175,6 +191,13 @@ exports.verifyOTP = async (req, res) => {
     user.verificationExpires = null;
 
     await user.save();
+
+    // 🔗 Dispatch Outbound Webhook Event (user.verified)
+    dispatchWebhookEvent('user.verified', {
+      userId: user._id,
+      email: user.email,
+      verifiedAt: new Date().toISOString()
+    }, user._id).catch(() => {});
 
     res.json({ msg: "Account verified successfully" });
 
@@ -728,6 +751,14 @@ exports.lockAccount = async (req, res) => {
       }
     });
 
+    // 🔗 Dispatch Outbound Webhook Event (user.locked)
+    dispatchWebhookEvent('user.locked', {
+      userId: user._id,
+      email: user.email,
+      reason: user.lockReason,
+      lockedAt: new Date().toISOString()
+    }, user._id).catch(() => {});
+
     res.json({
       msg: "Your account has been locked instantly and all active sessions have been terminated. Please contact your administrator to unlock your account.",
       email: user.email,
@@ -781,6 +812,14 @@ exports.lockAccountDirect = async (req, res) => {
         sessionsTerminated: true
       }
     });
+
+    // 🔗 Dispatch Outbound Webhook Event (user.locked)
+    dispatchWebhookEvent('user.locked', {
+      userId: user._id,
+      email: user.email,
+      reason: user.lockReason,
+      lockedAt: new Date().toISOString()
+    }, user._id).catch(() => {});
 
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     res.redirect(`${clientUrl}/login?accountLocked=true&email=${encodeURIComponent(user.email)}`);
@@ -866,6 +905,13 @@ exports.unlockAccount = async (req, res) => {
       deviceInfo,
       metadata: { method: "self_service_email_verification" }
     });
+
+    // 🔗 Dispatch Outbound Webhook Event (user.unlocked)
+    dispatchWebhookEvent('user.unlocked', {
+      userId: user._id,
+      email: user.email,
+      unlockedAt: new Date().toISOString()
+    }, user._id).catch(() => {});
 
     res.json({ msg: "Your account has been successfully unlocked! You may now sign in." });
 

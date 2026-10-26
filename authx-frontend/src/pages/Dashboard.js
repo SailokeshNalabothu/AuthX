@@ -297,6 +297,13 @@ const Dashboard = () => {
       <nav className="dashboard-nav">
         <div className="logo">AuthX</div>
         <div>
+          <button 
+            onClick={() => navigate('/developer')} 
+            className="btn-secondary" 
+            style={{marginRight: '12px', background: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', borderColor: '#c7d2fe', fontWeight: '600'}}
+          >
+            ⚡ Developer Platform
+          </button>
           {user?.role === 'admin' && (
             <button onClick={() => navigate('/admin')} className="btn-secondary" style={{marginRight: '12px'}}>Admin Panel</button>
           )}

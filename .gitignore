@@ -41,3 +41,5 @@ ehthumbs.db
 # Sensitive Local Exports
 Backup Codes.txt
 *.backup.txt
+scratch/
+.system_generated/

@@ -39,6 +39,9 @@ app.use('/api/2fa', twoFactorRoutes);
 const auditRoutes = require('./routes/auditRoutes');
 app.use('/api/audit', auditRoutes);
 
+const developerRoutes = require('./routes/developerRoutes');
+app.use('/api', developerRoutes);
+
 const User = require('./models/User');
 
 app.get('/create-user', async (req, res) => {

@@ -11,6 +11,7 @@ import GoogleSuccess from './pages/GoogleSuccess';
 import LockAccount from './pages/LockAccount';
 import UnlockAccount from './pages/UnlockAccount';
 import VerifyEmail from './pages/VerifyEmail';
+import Developer from './pages/Developer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -32,6 +33,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/developer" 
+            element={
+              <ProtectedRoute>
+                <Developer />
               </ProtectedRoute>
             } 
           />

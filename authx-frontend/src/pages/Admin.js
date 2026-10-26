@@ -162,9 +162,14 @@ const Admin = () => {
             SECURITY OPERATIONS CENTER
           </span>
         </div>
-        <Link to="/dashboard" className="btn-secondary" style={{ textDecoration: 'none' }}>
-          ← Back to Dashboard
-        </Link>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <Link to="/developer" className="btn-secondary" style={{ textDecoration: 'none', background: 'rgba(99, 102, 241, 0.1)', color: '#4f46e5', borderColor: '#c7d2fe', fontWeight: '600' }}>
+            ⚡ Developer Platform
+          </Link>
+          <Link to="/dashboard" className="btn-secondary" style={{ textDecoration: 'none' }}>
+            ← Back to Dashboard
+          </Link>
+        </div>
       </nav>
       
       <main className="dashboard-content">

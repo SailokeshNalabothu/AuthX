@@ -94,4 +94,22 @@ export const deleteUser = (id) => api.delete(`/users/${id}`);
 export const changeRole = (id, role) => api.put(`/users/${id}/role`, { role });
 export const unlockUser = (id) => api.put(`/users/${id}/unlock`);
 
+// ⚡ Developer Platform: Scoped API Keys (PATs)
+export const createApiKey = (data) => api.post(`/api-keys`, data);
+export const getApiKeys = () => api.get(`/api-keys`);
+export const revokeApiKey = (id) => api.put(`/api-keys/${id}/revoke`);
+export const deleteApiKey = (id) => api.delete(`/api-keys/${id}`);
+
+// 🔗 Developer Platform: Outbound Webhooks
+export const createWebhook = (data) => api.post(`/webhooks`, data);
+export const getWebhooks = () => api.get(`/webhooks`);
+export const getWebhook = (id) => api.get(`/webhooks/${id}`);
+export const deleteWebhook = (id) => api.delete(`/webhooks/${id}`);
+export const testWebhook = (id) => api.post(`/webhooks/${id}/test`);
+export const getWebhookDeliveries = (id) => api.get(`/webhooks/${id}/deliveries`);
+
+// ⚡ Developer Scoped V1 Endpoints
+export const getDeveloperProfile = () => api.get(`/developer/v1/profile`);
+export const getDeveloperUsers = () => api.get(`/developer/v1/users`);
+
 export default api;

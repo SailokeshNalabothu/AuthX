@@ -30,7 +30,11 @@ const auditLogSchema = new mongoose.Schema(
         'ACCOUNT_UNLOCKED',
         'EMAIL_VERIFIED',
         'ROLE_CHANGED',
-        'SESSION_REVOKED'
+        'SESSION_REVOKED',
+        'API_KEY_CREATED',
+        'API_KEY_REVOKED',
+        'WEBHOOK_CREATED',
+        'WEBHOOK_DELETED'
       ],
       index: true
     },

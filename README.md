@@ -5,10 +5,10 @@
 [![React Version](https://img.shields.io/badge/react-18.x-61dafb.svg)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/database-MongoDB-47A248.svg)](https://www.mongodb.com/)
 [![Docker Ready](https://img.shields.io/badge/docker-orchestrated-2496ED.svg)](https://www.docker.com/)
-[![Test Suite](https://img.shields.io/badge/tests-31%2F31%20passing-success.svg)](https://jestjs.io/)
+[![Test Suite](https://img.shields.io/badge/tests-49%2F49%20passing-success.svg)](https://jestjs.io/)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 
-> **AuthX** is a production-hardened, full-stack identity, session intelligence, and access management platform engineered with **Node.js**, **Express**, **MongoDB**, and **React**. Designed to meet modern enterprise SaaS standards (Google & Clerk style), AuthX delivers 1-click cryptographic email verification, proactive anomaly detection, instant account lockdown alerts, immutable security audit logs with CSV export, interactive personal security timelines, active multi-session tracking, RFC 6238 TOTP two-factor authentication, cryptographic backup recovery codes, dual-token JWT architecture with silent refresh interceptors, rate-limiting brute-force defenses, Google OAuth 2.0 SSO, and role-based access control.
+> **AuthX** is a production-hardened, full-stack identity, session intelligence, and access management developer platform engineered with **Node.js**, **Express**, **MongoDB**, and **React**. Designed to meet modern enterprise SaaS standards (Stripe, Clerk & Supabase style), AuthX delivers a developer-first platform with scoped API keys (PATs), signed outbound webhooks with HMAC SHA-256 signatures, 1-click cryptographic email verification, proactive anomaly detection, instant account lockdown alerts, immutable security audit logs with CSV export, interactive personal security timelines, active multi-session tracking, RFC 6238 TOTP two-factor authentication, cryptographic backup recovery codes, dual-token JWT architecture with silent refresh interceptors, rate-limiting brute-force defenses, Google OAuth 2.0 SSO, and role-based access control.
 
 ---
 
@@ -30,6 +30,7 @@
     - [9. Brute-Force Protection \& Account Lockout](#9-brute-force-protection--account-lockout)
     - [10. Federated Single Sign-On (Google OAuth 2.0)](#10-federated-single-sign-on-google-oauth-20)
     - [11. Role-Based Access Control (RBAC)](#11-role-based-access-control-rbac)
+    - [12. ⚡ Developer Platform: Scoped API Keys (PATs) \& Signed Outbound Webhooks](#12--developer-platform-scoped-api-keys-pats--signed-outbound-webhooks)
   - [🛠 Tech Stack](#-tech-stack)
   - [📡 REST API Reference](#-rest-api-reference)
     - [Authentication Endpoints (`/api/auth`)](#authentication-endpoints-apiauth)
@@ -37,6 +38,9 @@
     - [Two-Factor Authentication Endpoints (`/api/2fa`)](#two-factor-authentication-endpoints-api2fa)
     - [Security Audit Trail Endpoints (`/api/audit`)](#security-audit-trail-endpoints-apiaudit)
     - [User \& Administration Endpoints (`/api/users`)](#user--administration-endpoints-apiusers)
+    - [Developer Platform: API Keys (`/api/api-keys`)](#developer-platform-api-keys-apiapi-keys)
+    - [Developer Platform: Outbound Webhooks (`/api/webhooks`)](#developer-platform-outbound-webhooks-apiwebhooks)
+    - [Developer Scoped Data Endpoints (`/api/developer/v1`)](#developer-scoped-data-endpoints-apideveloperv1)
   - [🧪 Testing \& Quality Assurance](#-testing--quality-assurance)
     - [Test Suite Execution Status](#test-suite-execution-status)
     - [Enterprise Pipeline Safeguards](#enterprise-pipeline-safeguards)
@@ -162,6 +166,21 @@ graph TD
 - **Declarative Middleware Guards:** `roleMiddleware('admin')` protects administrative routes, user deletion, and role elevation.
 - **Client Route Guards:** Custom `<ProtectedRoute>` and `<AdminRoute>` components decode JWT payloads client-side for immediate UI restriction.
 
+### 12. ⚡ Developer Platform: Scoped API Keys (PATs) & Signed Outbound Webhooks
+
+- **Personal Access Tokens (PATs) / Scoped API Keys:**
+  - Standard format: `authx_live_sk_<48-hex-chars>`.
+  - Secure SHA-256 one-way cryptographic hashing: The raw secret key is only displayed **once** upon creation and never stored in plaintext in the database.
+  - Granular RBAC Scopes: `read:profile`, `read:users`, `write:users`, `read:sessions`, `write:sessions`, `read:audit`.
+  - Flexible Authentication: Middleware accepts keys via both `Authorization: Bearer authx_live_sk_...` and `x-api-key: ...` headers.
+  - Expiration & Revocation: Built-in expiry policies (7d, 30d, 90d, 1y, Never) and instant one-click revocation.
+- **Outbound Webhooks (Stripe / Svix Standard):**
+  - External applications receive signed HTTP POST event notifications whenever key identity events occur.
+  - Subscribable Events: `user.signup`, `user.verified`, `user.locked`, `user.unlocked`, `user.deleted`, `session.revoked`.
+  - HMAC SHA-256 Signatures: Every webhook payload is signed with the endpoint's unique secret (`whsec_...`) and transmitted in the header `X-AuthX-Signature: t=<timestamp>,v1=<hmac>`.
+  - Replay Attack Mitigation & Timing-Safe Verification: Receivers can verify authenticity and timestamp freshness via constant-time comparison (`crypto.timingSafeEqual`).
+  - Comprehensive Delivery Observability: Full audit trail recording HTTP status codes, roundtrip latency, request bodies, and signature headers for every dispatch, with a built-in "Send Test Ping" console.
+
 ---
 
 ## 🛠 Tech Stack
@@ -234,6 +253,75 @@ Frontend Routing & UI: React Router v6, Axios, React Toastify, Custom Modern CSS
 | `PUT` | `/api/users/:id/role` | Admin Role | Update user role (`user` / `admin`) |
 | `PUT` | `/api/users/:id/unlock` | Admin Role | Unlock a locked user account immediately |
 
+### Developer Platform: API Keys (`/api/api-keys`)
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/api-keys` | Bearer Token | Generate new scoped API key (`authx_live_sk_...`) with selectable permissions and expiry |
+| `GET` | `/api/api-keys` | Bearer Token | List all active and revoked API keys for the current account |
+| `PUT` | `/api/api-keys/:id/revoke` | Bearer Token | Immediately revoke an API key |
+| `DELETE` | `/api/api-keys/:id` | Bearer Token | Delete an API key record permanently |
+
+### Developer Platform: Outbound Webhooks (`/api/webhooks`)
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/webhooks` | Bearer Token | Register a new webhook endpoint with subscribed event filters |
+| `GET` | `/api/webhooks` | Bearer Token | List all configured webhook endpoints |
+| `GET` | `/api/webhooks/:id` | Bearer Token | Get detailed webhook configuration including signing secret |
+| `DELETE` | `/api/webhooks/:id` | Bearer Token | Delete a webhook subscription |
+| `POST` | `/api/webhooks/:id/test` | Bearer Token | Dispatch an immediate signed test ping event (`webhook.test`) |
+| `GET` | `/api/webhooks/:id/deliveries` | Bearer Token | Retrieve delivery history, response codes, latencies, and signature headers |
+
+### Developer Scoped Data Endpoints (`/api/developer/v1`)
+
+| Method | Endpoint | Required Scope | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/developer/v1/profile` | `read:profile` | Query authenticated user identity and profile metadata |
+| `GET` | `/api/developer/v1/users` | `read:users` | Query user directory via API key |
+| `GET` | `/api/developer/v1/sessions` | `read:sessions` | Query active session inventory via API key |
+| `GET` | `/api/developer/v1/audit-events` | `read:audit` | Query immutable audit log history via API key |
+
+---
+
+### 🔐 Webhook Signature Verification Guide (Node.js / Express)
+
+Every outbound webhook sent by AuthX includes an `X-AuthX-Signature` header formatted as:
+```http
+X-AuthX-Signature: t=1730000000000,v1=9f83...612c
+```
+
+To verify the signature in your application and prevent replay attacks:
+
+```javascript
+const crypto = require('crypto');
+
+function verifyAuthXWebhook(rawBody, signatureHeader, secret, toleranceSeconds = 300) {
+  const parts = signatureHeader.split(',');
+  const timestampStr = parts.find(p => p.startsWith('t='))?.split('=')[1];
+  const signature = parts.find(p => p.startsWith('v1='))?.split('=')[1];
+
+  if (!timestampStr || !signature) return false;
+
+  // Protect against replay attacks (5-minute tolerance)
+  const timestamp = parseInt(timestampStr, 10);
+  if (Math.abs(Date.now() - timestamp) > toleranceSeconds * 1000) {
+    return false;
+  }
+
+  // Compute expected HMAC SHA-256
+  const payloadToSign = `${timestamp}.${rawBody}`;
+  const expectedHmac = crypto.createHmac('sha256', secret).update(payloadToSign).digest('hex');
+
+  // Constant-time comparison to prevent timing attacks
+  const sigBuffer = Buffer.from(signature, 'hex');
+  const expectedBuffer = Buffer.from(expectedHmac, 'hex');
+  if (sigBuffer.length !== expectedBuffer.length) return false;
+
+  return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+}
+```
+
 ---
 
 ## 🧪 Testing & Quality Assurance
@@ -248,16 +336,17 @@ npm test
 ### Test Suite Execution Status
 
 ```
+PASS tests/developerPlatform.test.js
+PASS tests/anomalyAndAudit.test.js
+PASS tests/admin.test.js
 PASS tests/auth.test.js
 PASS tests/password.test.js
 PASS tests/session.test.js
-PASS tests/anomalyAndAudit.test.js
-PASS tests/admin.test.js
 PASS tests/protected.test.js
 PASS tests/oauth.test.js
 
-Test Suites: 7 passed, 7 total
-Tests:       31 passed, 31 total
+Test Suites: 8 passed, 8 total
+Tests:       49 passed, 49 total
 Snapshots:   0 total
 Status:      100% Passing (All Suites Green)
 ```

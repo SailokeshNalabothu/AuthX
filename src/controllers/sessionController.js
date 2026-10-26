@@ -1,5 +1,6 @@
 const Session = require('../models/Session');
 const { logAuditEvent } = require('../services/auditService');
+const { dispatchWebhookEvent } = require('../services/webhookService');
 
 // Get all active sessions for the logged-in user
 exports.getUserSessions = async (req, res) => {
@@ -62,6 +63,15 @@ exports.revokeSession = async (req, res) => {
         targetIp: session.ipAddress
       }
     });
+
+    // 🔗 Dispatch Outbound Webhook Event (session.revoked)
+    dispatchWebhookEvent('session.revoked', {
+      sessionId: session._id,
+      userId: session.userId,
+      device: `${session.browser} on ${session.os}`,
+      ipAddress: session.ipAddress,
+      revokedAt: new Date().toISOString()
+    }, session.userId).catch(() => {});
 
     res.json({ msg: "Device session revoked successfully" });
   } catch (error) {
